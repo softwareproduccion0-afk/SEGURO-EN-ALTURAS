@@ -25,15 +25,9 @@
 </head>
 <body class="bg-slate-200 p-2 md:p-6 font-sans text-[10px] text-slate-900 leading-tight">
 
-  <!-- BARRA DE CONTROL SUPERIOR -->
+ <!-- BARRA DE CONTROL SUPERIOR -->
   <div class="max-w-5xl mx-auto mb-4 flex justify-between items-center no-print">
     <div class="font-bold text-sm text-slate-700">Formulario Digital SST - Falcon Farms</div>
-    <div class="flex gap-2">
-      <button onclick="window.print()" class="bg-[#00a66c] hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded shadow flex items-center gap-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-        Imprimir / PDF
-      </button>
-    </div>
   </div>
 
   <div class="max-w-5xl mx-auto space-y-6">
@@ -728,8 +722,18 @@
 
           <div id="galeria_fotos" class="grid grid-cols-2 md:grid-cols-3 gap-2 pt-1"></div>
         </div>
+      <div id="galeria_fotos" class="grid grid-cols-2 md:grid-cols-3 gap-2 pt-1"></div>
+        </div>
       </div>
 
+    </div>
+
+    <!-- BOTÓN FINAL DE IMPRESIÓN / PDF -->
+    <div class="flex justify-end pb-6 no-print">
+      <button onclick="window.print()" class="bg-[#00a66c] hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded shadow-lg flex items-center gap-2 text-xs">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+        Imprimir / Guardar PDF
+      </button>
     </div>
 
   </div>
