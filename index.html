@@ -252,8 +252,7 @@
       </div>
 
     </div>
-
-    <!-- ==========================================
+<!-- ==========================================
          PÁGINA 2: REGISTRO PERSONAL Y ATS
     ========================================== -->
     <div class="bg-white p-4 border border-black space-y-3 page-break">
@@ -440,8 +439,7 @@
       </div>
 
     </div>
-
-    <!-- ==========================================
+<!-- ==========================================
          PÁGINA 3: CONDICIONES, EMERGENCIAS Y FIRMAS
     ========================================== -->
     <div class="bg-white p-4 border border-black space-y-3 page-break">
@@ -647,8 +645,7 @@
           <textarea class="w-full border p-1 h-8 mt-1"></textarea>
         </div>
       </div>
-
-      <!-- Firmas Autorizaciones -->
+<!-- Firmas Autorizaciones -->
       <div class="border border-black">
         <div class="bg-[#00a66c] text-white font-bold text-center p-0.5 uppercase">
           PERSONAS HABILITADAS PARA AUTORIZAR Y VALIDAR EL PERMISO DE TRABAJO
@@ -711,6 +708,28 @@
         </div>
       </div>
 
+      <!-- NUEVO: Registro Fotográfico / Evidencia -->
+      <div class="border border-black">
+        <div class="bg-[#00a66c] text-white font-bold text-center p-0.5 uppercase">
+          REGISTRO FOTOGRÁFICO / EVIDENCIA DE LA LABOR
+        </div>
+        <div class="p-2 space-y-2">
+          <div class="flex flex-wrap items-center gap-2 no-print">
+            <label for="input_fotos" class="bg-[#00a66c] hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded cursor-pointer inline-flex items-center gap-1.5 text-[10px]">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
+              Tomar Foto / Adjuntar Evidencia
+            </label>
+            <input type="file" id="input_fotos" accept="image/*" capture="environment" multiple class="hidden" onchange="agregarFotos(event)">
+            <span class="text-[8px] text-slate-500">Puede tomar o seleccionar varias fotos (se ajustan automáticamente al imprimir).</span>
+          </div>
+
+          <div id="galeria_fotos" class="grid grid-cols-2 md:grid-cols-3 gap-2 pt-1"></div>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -727,6 +746,33 @@
         cell.innerText = '-';
         cell.className = 'border border-black cursor-pointer select-none font-bold text-[7px]';
       }
+    }
+
+    // Función para manejar la carga o captura de fotos
+    function agregarFotos(event) {
+      const files = event.target.files;
+      const galeria = document.getElementById('galeria_fotos');
+      if (!files || !galeria) return;
+
+      Array.from(files).forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const card = document.createElement('div');
+          card.className = 'border border-black p-1 bg-slate-50 flex flex-col items-center relative break-inside-avoid';
+          
+          card.innerHTML = `
+            <img src="${e.target.result}" class="w-full h-36 object-contain bg-white border border-slate-300">
+            <input type="text" placeholder="Descripción de la foto (opcional)" class="w-full border-b border-black text-[8px] mt-1 px-1 bg-transparent focus:outline-none">
+            <button type="button" onclick="this.parentElement.remove()" class="text-[7px] text-red-600 underline mt-1 no-print">Eliminar foto</button>
+          `;
+          galeria.appendChild(card);
+        };
+        reader.readAsDataURL(file);
+      });
+
+      event.target.value = '';
     }
 
     // Inicializar todos los lienzos de firma (Principales, Cierre y los 12 de las tablas de personal)
@@ -779,186 +825,7 @@
       if(c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
     }
 
-    // Ejecutar la activación de firmas al cargar la página
     window.onload = initCanvas;
-
-    // Exportación completa y estilizada de TODO el formulario a Excel (.xls)
-    function exportarExcel() {
-      function getRadioVal(name) {
-        const el = document.querySelector(`input[name="${name}"]:checked`);
-        return el ? el.value : "";
-      }
-
-      let html = `
-        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-        <head>
-          <meta charset="UTF-8">
-          <style>
-            table { border-collapse: collapse; font-family: Calibri, sans-serif; font-size: 9pt; width: 100%; }
-            th { background-color: #00A66C; color: #FFFFFF; font-weight: bold; text-align: center; border: 1px solid #000000; padding: 5px; }
-            td { border: 1px solid #000000; padding: 4px; vertical-align: middle; }
-            .titulo-principal { background-color: #00A66C; color: #FFFFFF; font-weight: bold; font-size: 11pt; text-align: center; height: 30px; }
-            .subtitulo { background-color: #00A66C; color: #FFFFFF; font-weight: bold; text-align: center; font-size: 10pt; }
-            .seccion { background-color: #D9EAD3; color: #000000; font-weight: bold; text-align: left; }
-            .etiqueta { background-color: #F2F2F2; font-weight: bold; }
-            .centro { text-align: center; }
-            .bueno { background-color: #E2EFDA; color: #375623; font-weight: bold; text-align: center; }
-            .malo { background-color: #FCE4D6; color: #C65911; font-weight: bold; text-align: center; }
-          </style>
-        </head>
-        <body>
-          <table>
-            <tr><td colspan="6" class="titulo-principal">FALCON FARMS DE COLOMBIA S.A - FINCA TORREMOLINOS</td></tr>
-            <tr><td colspan="6" class="titulo-principal">PERMISO TRABAJO SEGURO EN ALTURAS</td></tr>
-            <tr><td colspan="6"></td></tr>
-
-            <tr><td colspan="6" class="seccion">DATOS GENERALES DE LA LABOR</td></tr>
-            <tr><td class="etiqueta"># DE PERMISO</td><td colspan="5">${document.getElementById('num_permiso')?.value || ''}</td></tr>
-            <tr><td class="etiqueta">Fecha Inicio</td><td colspan="2">${document.getElementById('fecha_inicio')?.value || ''}</td><td class="etiqueta">Fecha Fin</td><td colspan="2">${document.getElementById('fecha_fin')?.value || ''}</td></tr>
-            <tr><td class="etiqueta">Horario</td><td colspan="5">De: ${document.getElementById('hora_inicio')?.value || ''} A: ${document.getElementById('hora_fin')?.value || ''}</td></tr>
-            <tr><td class="etiqueta">Lugar de Trabajo</td><td colspan="5">${document.getElementById('lugar')?.value || ''}</td></tr>
-            <tr><td class="etiqueta">Altura Aproximada</td><td colspan="5">${document.getElementById('altura')?.value || ''} metros</td></tr>
-            <tr><td class="etiqueta">Descripción de la labor</td><td colspan="5">${document.getElementById('descripcion')?.value || ''}</td></tr>
-            <tr><td class="etiqueta">Seguridad Social</td><td colspan="2">${getRadioVal('docs_soc')}</td><td class="etiqueta">Tipo de Trabajo</td><td colspan="2">${getRadioVal('tipo_trabajo')}</td></tr>
-            <tr><td class="etiqueta">Personal Realiza</td><td colspan="5">${getRadioVal('tipo_pers')} | Admin Empresa: ${document.getElementById('admin_pppcc')?.value || ''} | Coord Empresa: ${document.getElementById('coord_tsa')?.value || ''}</td></tr>
-            <tr><td colspan="6"></td></tr>
-
-            <tr><td colspan="6" class="subtitulo">EQUIPOS DE PROTECCIÓN CONTRA CAÍDAS Y SISTEMAS DE ACCESO</td></tr>
-            <tr><td colspan="3" class="etiqueta">Elemento / Equipo</td><td class="etiqueta centro">Estado (SI / NO / N/A)</td><td colspan="2" class="etiqueta">Observaciones</td></tr>
-            <tr><td colspan="3">Eslingas contra caídas certificadas</td><td class="centro">${getRadioVal('esl_1')}</td><td colspan="2"></td></tr>
-            <tr><td colspan="3">Eslingas de posicionamiento certificadas</td><td class="centro">${getRadioVal('esl_2')}</td><td colspan="2"></td></tr>
-            <tr><td colspan="3">Eslinga con absorbedor de energía</td><td class="centro">${getRadioVal('esl_3')}</td><td colspan="2"></td></tr>
-            <tr><td colspan="3">Líneas de vida portátiles</td><td class="centro">${getRadioVal('anc_1')}</td><td colspan="2"></td></tr>
-            <tr><td colspan="3">Líneas de vida fijas</td><td class="centro">${getRadioVal('anc_2')}</td><td colspan="2"></td></tr>
-            <tr><td colspan="3">Mosquetones de doble seguro</td><td class="centro">${getRadioVal('mosq_1')}</td><td colspan="2"></td></tr>
-            <tr><td colspan="3">Andamios (Uso: ${getRadioVal('acc_andamio')})</td><td class="centro">${getRadioVal('chk_andamio')}</td><td colspan="2"></td></tr>
-            <tr><td colspan="3">Escaleras (Uso: ${getRadioVal('acc_escalera')})</td><td class="centro">${getRadioVal('chk_escalera')}</td><td colspan="2"></td></tr>
-            <tr><td colspan="3">Elevadores (Uso: ${getRadioVal('acc_elevador')})</td><td class="centro">${getRadioVal('chk_elevador')}</td><td colspan="2"></td></tr>
-          </table>
-      `;
-
-      // 1. TRABAJADORES
-      html += `
-        <table>
-          <tr><td colspan="16" class="subtitulo">1. PERSONAS AUTORIZADAS PARA TRABAJAR EN ALTURAS</td></tr>
-          <tr>
-            <th>N° Documento</th><th>Nombres y Apellidos</th><th>ARL</th>
-            <th>Salud Óptima</th><th>Concepto Apto</th><th>Seguridad Social</th><th>Certificado TSA</th>
-            <th>Arnés</th><th>1era Eslinga</th><th>2da Eslinga</th><th>Casco II</th><th>Barbuquejo</th><th>Lentes</th><th>Guantes</th><th>Portaherram.</th><th>Bota Militar</th>
-          </tr>
-      `;
-      const rowsTrab = document.querySelectorAll("#tabla_trabajadores tbody tr");
-      rowsTrab.forEach(tr => {
-        const inputs = tr.querySelectorAll("input[type='text']");
-        const doc = inputs[0] ? inputs[0].value : "";
-        const nombre = inputs[1] ? inputs[1].value : "";
-        const arl = inputs[2] ? inputs[2].value : "";
-        if (doc || nombre) {
-          const radios = tr.querySelectorAll("input[type='radio']");
-          const salud = radios[0]?.checked ? "SI" : (radios[1]?.checked ? "NO" : "");
-          const apto = radios[2]?.checked ? "SI" : (radios[3]?.checked ? "NO" : "");
-          const ss = radios[4]?.checked ? "SI" : (radios[5]?.checked ? "NO" : "");
-          const tsa = radios[6]?.checked ? "SI" : (radios[7]?.checked ? "NO" : "");
-          const celdasBM = tr.querySelectorAll("td.cursor-pointer");
-
-          html += `<tr>
-            <td class="centro">${doc}</td><td>${nombre}</td><td class="centro">${arl}</td>
-            <td class="centro">${salud}</td><td class="centro">${apto}</td><td class="centro">${ss}</td><td class="centro">${tsa}</td>`;
-          celdasBM.forEach(td => {
-            let val = td.innerText.trim();
-            let clase = val === 'B' ? 'bueno' : (val === 'M' ? 'malo' : 'centro');
-            html += `<td class="${clase}">${val}</td>`;
-          });
-          html += `</tr>`;
-        }
-      });
-      html += `</table>`;
-
-      // 2. AYUDANTES
-      html += `
-        <table>
-          <tr><td colspan="16" class="subtitulo">2. AYUDANTES DE SEGURIDAD</td></tr>
-          <tr>
-            <th>N° Documento</th><th>Nombres y Apellidos</th><th>ARL</th>
-            <th>Salud Óptima</th><th>Concepto Apto</th><th>Seguridad Social</th><th>Certificado TSA</th>
-            <th>Arnés</th><th>1era Eslinga</th><th>2da Eslinga</th><th>Casco II</th><th>Barbuquejo</th><th>Lentes</th><th>Guantes</th><th>Portaherram.</th><th>Bota Militar</th>
-          </tr>
-      `;
-      const rowsAy = document.querySelectorAll("#tabla_ayudantes tbody tr");
-      rowsAy.forEach(tr => {
-        const inputs = tr.querySelectorAll("input[type='text']");
-        const doc = inputs[0] ? inputs[0].value : "";
-        const nombre = inputs[1] ? inputs[1].value : "";
-        const arl = inputs[2] ? inputs[2].value : "";
-        if (doc || nombre) {
-          const radios = tr.querySelectorAll("input[type='radio']");
-          const salud = radios[0]?.checked ? "SI" : (radios[1]?.checked ? "NO" : "");
-          const apto = radios[2]?.checked ? "SI" : (radios[3]?.checked ? "NO" : "");
-          const ss = radios[4]?.checked ? "SI" : (radios[5]?.checked ? "NO" : "");
-          const tsa = radios[6]?.checked ? "SI" : (radios[7]?.checked ? "NO" : "");
-          const celdasBM = tr.querySelectorAll("td.cursor-pointer");
-
-          html += `<tr>
-            <td class="centro">${doc}</td><td>${nombre}</td><td class="centro">${arl}</td>
-            <td class="centro">${salud}</td><td class="centro">${apto}</td><td class="centro">${ss}</td><td class="centro">${tsa}</td>`;
-          celdasBM.forEach(td => {
-            let val = td.innerText.trim();
-            let clase = val === 'B' ? 'bueno' : (val === 'M' ? 'malo' : 'centro');
-            html += `<td class="${clase}">${val}</td>`;
-          });
-          html += `</tr>`;
-        }
-      });
-      html += `</table>`;
-
-      // ATS
-      html += `
-        <table>
-          <tr><td colspan="4" class="subtitulo">ANÁLISIS DE TRABAJO SEGURO - ATS</td></tr>
-          <tr><th style="width:30px;">#</th><th>Pasos de la Tarea</th><th>Peligros / Riesgos Potenciales</th><th>Controles</th></tr>
-      `;
-      const rowsAts = document.querySelectorAll("#tabla_ats tbody tr");
-      rowsAts.forEach((tr, index) => {
-        const inputs = tr.querySelectorAll("input[type='text']");
-        const paso = inputs[0]?.value || "";
-        const peligro = inputs[1]?.value || "";
-        const control = inputs[2]?.value || "";
-        if(paso || peligro || control) {
-          html += `<tr><td class="centro font-bold">${index + 1}</td><td>${paso}</td><td>${peligro}</td><td>${control}</td></tr>`;
-        }
-      });
-      html += `</table>`;
-
-      // CONDICIONES DE SEGURIDAD
-      html += `
-        <table>
-          <tr><td colspan="4" class="subtitulo">VERIFICACIÓN DE CONDICIONES DE SEGURIDAD</td></tr>
-          <tr><th colspan="2">Condición / Requisito</th><th>Estado (SI / NO / N/A)</th><th>Observaciones</th></tr>
-      `;
-      for (let i = 1; i <= 16; i++) {
-        const radios = document.querySelectorAll(`input[name="c${i}"]`);
-        let val = "";
-        radios.forEach(r => { if(r.checked) val = r.value; });
-        const obsInput = radios.length > 0 ? radios[0].closest('tr').querySelector('input[type="text"]') : null;
-        const obs = obsInput ? obsInput.value : "";
-        html += `<tr><td colspan="2">Ítem de Condición ${i}</td><td class="centro">${val}</td><td>${obs}</td></tr>`;
-      }
-      html += `</table>`;
-
-      // RESCATE, EMERGENCIA Y CIERRE
-      html += `
-        <table>
-          <tr><td colspan="2" class="subtitulo">MEDIDAS DE EMERGENCIA Y RESCATE</td></tr>
-          <tr><td class="etiqueta">Responsable de Cierre (Nombre)</td><td>${document.getElementById('nombre_cierre')?.value || ''}</td></tr>
-        </table>
-        </body>
-        </html>
-      `;
-
-      const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-      const fileName = `Permiso_Trabajo_Alturas_FalconFarms_${new Date().toISOString().split('T')[0]}.xls`;
-      saveAs(blob, fileName);
-    }
   </script>
 </body>
 </html>
