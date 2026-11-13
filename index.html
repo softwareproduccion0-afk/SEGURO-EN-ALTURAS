@@ -529,36 +529,69 @@
         }
 
         function autoFillBotiquinData() {
-            const codeId = document.getElementById('bot-id').value.trim();
-            const masterInfo = masterBotiquines.find(b => b.id === codeId);
+    const codeId = document.getElementById('bot-id').value.trim();
+    const masterInfo = masterBotiquines.find(b => b.id === codeId);
+    
+    if (masterInfo) {
+        document.getElementById('bot-location').value = masterInfo.ubicacion;
+    } else {
+        document.getElementById('bot-location').value = '';
+    }
+
+    // Buscar si ya existe una inspección previa para este botiquín
+    const existingInspection = inspections.find(i => i.id === codeId);
+    
+    if (existingInspection) {
+        // Cargar datos generales
+        document.getElementById('bot-status').value = existingInspection.status || 'OK';
+        document.getElementById('bot-expiry').value = existingInspection.expiryDate || '2027-05-15';
+        if (existingInspection.inspector) {
+            document.getElementById('bot-inspector').value = existingInspection.inspector;
+        }
+
+        // Cargar checklist guardado
+        if (existingInspection.checklist) {
+            const results = document.querySelectorAll('.check-result');
+            const obss = document.querySelectorAll('.check-obs');
             
-            if (masterInfo) {
-                document.getElementById('bot-location').value = masterInfo.ubicacion;
-            } else {
-                document.getElementById('bot-location').value = '';
-            }
-
-            const existingInspection = inspections.find(i => i.id === codeId);
-            if (existingInspection) {
-                document.getElementById('bot-status').value = existingInspection.status;
-                document.getElementById('bot-expiry').value = existingInspection.expiryDate || '2027-05-15';
-                if(existingInspection.inspector) {
-                    document.getElementById('bot-inspector').value = existingInspection.inspector;
+            results.forEach((resEl, i) => {
+                const itemKey = resEl.getAttribute('data-item');
+                if (existingInspection.checklist[itemKey]) {
+                    resEl.value = existingInspection.checklist[itemKey].result || 'Cumple';
+                    if (obss[i]) {
+                        obss[i].value = existingInspection.checklist[itemKey].obs || '';
+                    }
                 }
-            }
+            });
         }
 
-        function checkUrlParams() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const botNum = urlParams.get('id');
-            if (botNum) {
-                const formattedId = `BOT-${String(botNum).padStart(3, '0')}`;
-                document.getElementById('bot-id').value = formattedId;
-                autoFillBotiquinData();
-                showSection('inspection-form');
-            }
+        // Cargar fotos guardadas
+        if (existingInspection.photos && Array.isArray(existingInspection.photos)) {
+            currentPhotos = [...existingInspection.photos];
+            renderPhotoPreviews();
+        } else {
+            currentPhotos = [];
+            renderPhotoPreviews();
         }
 
+        // Cargar firma digital si existe
+        if (signaturePad) {
+            signaturePad.clear();
+            if (existingInspection.signature) {
+                signaturePad.fromDataURL(existingInspection.signature);
+            }
+        }
+    } else {
+        // Si no hay inspección previa, limpiar el formulario para uno nuevo
+        document.getElementById('bot-status').value = 'OK';
+        document.getElementById('bot-expiry').value = '2027-05-15';
+        document.getElementById('bot-inspector').value = '';
+        renderChecklistTable();
+        currentPhotos = [];
+        renderPhotoPreviews();
+        if (signaturePad) signaturePad.clear();
+    }
+}
         function handlePhotoUpload(event) {
             const files = event.target.files;
             if (!files) return;
