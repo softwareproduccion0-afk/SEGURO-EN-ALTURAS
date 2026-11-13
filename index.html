@@ -1,963 +1,1116 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Permiso Trabajo Seguro en Alturas - Falcon Farms</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Librerías para Excel y Descarga (SheetJS + FileSaver) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-  <style>
-    @media print {
-      .no-print { display: none !important; }
-      body { background: white; padding: 0; margin: 0; }
-      .page-break { page-break-before: always; }
-    }
-    body {
-      /* Evita que deslizar hacia abajo recargue la página en móviles */
-      overscroll-behavior-y: contain;
-    }
-    .vertical-header {
-      writing-mode: vertical-lr;
-      transform: rotate(180deg);
-      text-align: center;
-      white-space: nowrap;
-    }
-    canvas { touch-action: none; background: #fff; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Control e Inspección de Botiquines - SST</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- Librería Especializada de Firma Digital -->
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <!-- Librería para generar archivos Excel (.xlsx) reales -->
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    <!-- Librería para disparar la descarga del archivo generado -->
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #1b5e20;
+            --primary-hover: #144618;
+            --secondary-color: #2e7d32;
+            --bg-light: #f8f9fa;
+        }
+
+        body {
+            background-color: #f3f4f6;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar-custom {
+            background-color: var(--primary-color);
+        }
+
+        .card-custom {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            background: #ffffff;
+        }
+
+        .header-title {
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+
+        .table-sst th {
+            background-color: var(--primary-color) !important;
+            color: white !important;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+
+        .table-sst td {
+            vertical-align: middle;
+        }
+
+        .signature-pad-container {
+            border: 2px dashed #1b5e20;
+            border-radius: 8px;
+            background-color: #ffffff;
+            position: relative;
+            width: 100%;
+            height: 180px;
+            touch-action: none;
+        }
+
+        canvas.signature-pad {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border-radius: 6px;
+        }
+
+        .photo-preview {
+            width: 90px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+        }
+
+        .photo-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .btn-remove-photo {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            font-size: 12px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        #reader {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid var(--primary-color);
+        }
+
+        .badge-ok { background-color: #2e7d32; }
+        .badge-warn { background-color: #f57c00; }
+        .badge-danger { background-color: #c62828; }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 10px;
+                background: white;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
 </head>
-<body class="bg-slate-200 p-2 md:p-6 font-sans text-[10px] text-slate-900 leading-tight">
+<body>
 
-  <!-- BARRA DE CONTROL SUPERIOR -->
-  <div class="max-w-5xl mx-auto mb-4 flex justify-between items-center no-print">
-    <div class="font-bold text-sm text-slate-700">Formulario Digital SST - Falcon Farms</div>
-    <button type="button" onclick="limpiarTodoElFormulario()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded text-xs">
-      Nuevo Permiso (Limpiar)
-    </button>
-  </div>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top shadow-sm no-print">
+        <div class="container-fluid max-w-7xl">
+            <a class="navbar-brand d-flex align-items-center gap-2 font-bold" href="#">
+                <img id="navbar-logo" src="assets/logo.png" alt="Logo de la empresa" style="height:36px; width:36px; object-fit:contain; border-radius:50%; background:#fff; padding:2px;">
+                <span>SST BOTIQUINES - CONTROL E INSPECCIÓN</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto gap-2">
+                    <li class="nav-item">
+                        <button class="btn btn-outline-light btn-sm w-100" onclick="showSection('dashboard')">
+                            <i class="fa-solid fa-chart-pie me-1"></i> Dashboard
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-light text-success btn-sm w-100 fw-bold" onclick="showSection('inspection-form')">
+                            <i class="fa-solid fa-clipboard-check me-1"></i> Nueva Inspección
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-outline-light btn-sm w-100" onclick="showSection('history')">
+                            <i class="fa-solid fa-clock-rotate-left me-1"></i> Historial y Evidencias
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-warning text-dark btn-sm w-100 fw-bold" onclick="exportToExcel()">
+                            <i class="fa-solid fa-file-excel me-1"></i> Exportar Excel
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
 
-  <div class="max-w-5xl mx-auto space-y-6">
+    <!-- Main Container -->
+    <div class="container my-4 no-print">
 
-    <!-- ==========================================
-         PÁGINA 1: DATOS GENERALES Y EPP
-    ========================================== -->
-    <div class="bg-white p-4 border border-black space-y-3">
-      
-      <!-- Encabezado Oficial con Logo -->
-      <div class="border border-black grid grid-cols-12 text-center items-center">
-        <div class="col-span-3 border-r border-black p-1 flex flex-col items-center justify-center">
-          <img src="assets/logo.png" alt="Logo Falcon Farms" class="max-h-12 object-contain mb-1">
-          <div class="text-[7px] text-slate-600">Falcon Farms de Colombia S.A.<br>Finca Torremolinos</div>
-        </div>
-        <div class="col-span-6 border-r border-black p-2 font-bold text-center">
-          <p class="text-xs">FALCON FARMS DE COLOMBIA S.A - FINCA TORREMOLINOS</p>
-          <p class="text-xs mt-1">PERMISO TRABAJO SEGURO EN ALTURAS</p>
-        </div>
-        <div class="col-span-3 text-[9px] p-1 text-left space-y-1">
-          <div class="border-b border-black pb-1">Versión 4</div>
-          <div class="border-b border-black pb-1">dic-25</div>
-          <div>Página 1 de 3</div>
-        </div>
-      </div>
+        <!-- SECTION 1: DASHBOARD -->
+        <div id="section-dashboard" class="app-section">
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="card card-custom p-3 border-start border-4 border-success">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted fw-bold uppercase">Total Reg.</small>
+                                <h3 class="mb-0 fw-bold text-dark" id="dash-total">0</h3>
+                            </div>
+                            <i class="fa-solid fa-boxes-stacked fa-2x text-success opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card card-custom p-3 border-start border-4 border-primary">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted fw-bold uppercase">Operativos (OK)</small>
+                                <h3 class="mb-0 fw-bold text-primary" id="dash-ok">0</h3>
+                            </div>
+                            <i class="fa-solid fa-circle-check fa-2x text-primary opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card card-custom p-3 border-start border-4 border-warning">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted fw-bold uppercase">Próx. Vencer</small>
+                                <h3 class="mb-0 fw-bold text-warning" id="dash-warn">0</h3>
+                            </div>
+                            <i class="fa-solid fa-triangle-exclamation fa-2x text-warning opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card card-custom p-3 border-start border-4 border-danger">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted fw-bold uppercase">Inoperativos</small>
+                                <h3 class="mb-0 fw-bold text-danger" id="dash-danger">0</h3>
+                            </div>
+                            <i class="fa-solid fa-circle-xmark fa-2x text-danger opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-      <!-- Datos Principales de la Labor -->
-      <div class="border border-black p-2 space-y-2">
-        <div class="flex justify-end font-bold mb-1">
-          <span># DE PERMISO:</span>
-          <input type="text" id="num_permiso" class="border-b border-black ml-2 px-1 w-32 focus:outline-none">
+            <!-- Accesos Rápidos -->
+            <div class="card card-custom p-4 text-center">
+                <h4 class="header-title mb-3"><i class="fa-solid fa-qrcode me-2"></i>Escanear Botiquín In Situ</h4>
+                <p class="text-muted">Apunta con la cámara del celular al código QR pegado en el botiquín para abrir su ficha de inspección.</p>
+                <div class="d-flex justify-content-center gap-2">
+                    <button class="btn btn-success btn-lg px-4" onclick="openQRModal()">
+                        <i class="fa-solid fa-camera me-2"></i> Abrir Escáner de Cámara
+                    </button>
+                    <button class="btn btn-outline-secondary btn-lg" onclick="showSection('inspection-form')">
+                        <i class="fa-solid fa-pen-to-square me-2"></i> Registro Manual
+                    </button>
+                </div>
+            </div>
         </div>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <div><span class="font-bold">Fecha inicio de la labor:</span> <input type="date" id="fecha_inicio" class="border w-full p-0.5"></div>
-          <div><span class="font-bold">Horario:</span> De <input type="time" id="hora_inicio" class="border p-0.5"> A <input type="time" id="hora_fin" class="border p-0.5"></div>
-          <div class="col-span-2"><span class="font-bold">Fecha fin de la labor:</span> <input type="date" id="fecha_fin" class="border w-full p-0.5"></div>
-        </div>
-        <div>
-          <span class="font-bold">Lugar donde se realizará el trabajo en alturas:</span>
-          <input type="text" id="lugar" class="border-b border-black w-full focus:outline-none">
-        </div>
-        <div>
-          <span class="font-bold">Altura aproximada a la cual se va a desarrollar la actividad (En metros):</span>
-          <input type="text" id="altura" class="border-b border-black w-48 focus:outline-none">
-        </div>
-        <div>
-          <span class="font-bold">Descripción puntual de la labor:</span>
-          <textarea id="descripcion" class="border w-full p-1 h-10"></textarea>
-        </div>
-      </div>
+<!-- SECTION 2: FORMULARIO DE INSPECCIÓN DETALLADO -->
+        <div id="section-inspection-form" class="app-section d-none">
+            <form id="form-botiquin" onsubmit="saveInspection(event)">
+                
+                <div class="card card-custom p-4 mb-4">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                        <h4 class="header-title mb-0"><i class="fa-solid fa-clipboard-list me-2"></i>Datos del Botiquín</h4>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="openQRModal()">
+                            <i class="fa-solid fa-qrcode me-1"></i> Escanear QR
+                        </button>
+                    </div>
 
-      <!-- Revisiones, Tipo de Trabajo y Seguridad Social -->
-      <div class="grid grid-cols-12 border border-black text-[9px]">
-        <div class="col-span-4 border-r border-black p-1 space-y-1">
-          <p class="font-bold">¿El personal cuenta con los respectivos documentos que soporten el pago vigente de Seguridad Social y el documento de identificación?</p>
-          <div class="flex gap-4 font-bold">
-            <label><input type="radio" name="docs_soc" value="SI"> SI</label>
-            <label><input type="radio" name="docs_soc" value="NO"> NO</label>
-          </div>
-        </div>
-        <div class="col-span-4 border-r border-black p-1">
-          <p class="font-bold text-center border-b border-black pb-1">TIPO DE TRABAJO</p>
-          <div class="flex justify-around items-center h-8 font-bold">
-            <label><input type="radio" name="tipo_trabajo" value="RUTINARIO"> RUTINARIO</label>
-            <label><input type="radio" name="tipo_trabajo" value="NO RUTINARIO"> NO RUTINARIO</label>
-          </div>
-        </div>
-        <div class="col-span-4 p-1 text-center font-bold flex items-center justify-center">
-          Este formato deberá estar debidamente diligenciado y ubicado en un lugar de fácil acceso.
-        </div>
-      </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Número / ID Botiquín *</label>
+                            <select id="bot-id" class="form-select fw-bold text-success" required onchange="autoFillBotiquinData()">
+                                <option value="">Seleccione o escanee...</option>
+                            </select>
+                            <input type="hidden" id="bot-location">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Próxima Revisión *</label>
+                            <input type="date" id="bot-expiry" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
 
-      <!-- Personal Propio / Contratista -->
-      <div class="grid grid-cols-2 border border-black">
-        <div class="border-r border-black p-1">
-          <div class="font-bold">La labor va a ser realizada por personal propio o contratista:</div>
-          <div class="flex gap-4 mt-1 font-bold">
-            <label><input type="radio" name="tipo_pers" value="Propio"> Propio</label>
-            <label><input type="radio" name="tipo_pers" value="Contratista"> Contratista</label>
-          </div>
-          <div class="mt-2 space-y-1">
-            <p><strong>Administrador del PPPCC-Empresa:</strong> <input type="text" id="admin_pppcc" class="border-b border-black w-full"></p>
-            <p><strong>Coordinador TSA-Empresa:</strong> <input type="text" id="coord_tsa" class="border-b border-black w-full"></p>
-          </div>
-        </div>
-        <div class="p-1 space-y-1">
-          <p><strong>Administrador del PPPCC Contratista (Si aplica):</strong> <input type="text" id="admin_contratista" class="border-b border-black w-full"></p>
-          <p><strong>Coordinador TSA Contratista (Si aplica):</strong> <input type="text" id="coord_contratista" class="border-b border-black w-full"></p>
-        </div>
-      </div>
+                <!-- Tabla de Verificación (20 puntos oficiales) -->
+                <div class="card card-custom p-4 mb-4">
+                    <h4 class="header-title border-bottom pb-2 mb-3">
+                        <i class="fa-solid fa-list-check me-2"></i>Verificación del Botiquín (Criterios SST)
+                    </h4>
 
-      <!-- Instrucciones Generales -->
-      <div class="border border-black p-1 text-[8px] space-y-1 bg-slate-50">
-        <div class="font-bold text-center border-b border-black pb-0.5 uppercase">INSTRUCCIONES GENERALES DE TRABAJO PARA QUE EL PERMISO DE TRABAJO SE MANTENGA</div>
-        <div class="grid grid-cols-2 gap-x-2">
-          <p>1. Uso permanente del equipo de protección contra caídas anclado a línea de vida o punto certificado.</p>
-          <p>4. Garantizar la supervisión permanente a nivel de piso por persona capacitada.</p>
-          <p>2. Mantener señalizada el área de trabajo.</p>
-          <p>5. Si llueve en áreas descubiertas, suspender la labor de manera INMEDIATA.</p>
-          <p>3. No trabalhar fuera del área establecida, prohibido movilizar equipos con personas dentro.</p>
-          <p>6. Dar cumplimiento a la totalidad de los ítems relacionados.</p>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sst">
+                            <thead>
+                                <tr>
+                                    <th style="width: 35%;">Elemento / Criterio a Verificar</th>
+                                    <th style="width: 25%;">Cumple / No Cumple</th>
+                                    <th style="width: 40%;">Observación Individual</th>
+                                </tr>
+                            </thead>
+                            <tbody id="checklist-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Dictamen, Fotos y Firma -->
+                <div class="card card-custom p-4 mb-4">
+                    <h4 class="header-title border-bottom pb-2 mb-3">
+                        <i class="fa-solid fa-camera-retro me-2"></i>Dictamen, Evidencias y Firma
+                    </h4>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Dictamen / Estado Final *</label>
+                        <select id="bot-status" class="form-select fw-bold text-dark" required>
+                            <option value="OK" class="text-success fw-bold">🟢 CONFORME / OPERATIVO (OK)</option>
+                            <option value="Próximo a Vencer" class="text-warning fw-bold">🟡 REQUIERE REPOSICIÓN / MANTENIMIENTO</option>
+                            <option value="Inoperativo" class="text-danger fw-bold">🔴 NO CONFORME / FUERA DE SERVICIO</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Tomar / Adjuntar Fotos de Evidencia *</label>
+                        <input type="file" id="bot-photo-input" accept="image/*" capture="environment" class="form-control" multiple onchange="handlePhotoUpload(event)">
+                        <small class="text-muted">Toma directamente la foto con la cámara del celular o selecciona imágenes.</small>
+                        <div id="photo-preview-container" class="d-flex flex-wrap gap-2 mt-3"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nombre del Inspector / Auditor SST *</label>
+                        <select id="bot-inspector" class="form-select fw-bold text-success" required>
+                            <option value="">Seleccione el inspector...</option>
+                            <option value="Paula Patiño">Paula Patiño</option>
+                            <option value="Andres Comba">Andres Comba</option>
+                            <option value="Angela Tijaro">Angela Tijaro</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 pt-2 border-top">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label fw-bold mb-0">Firma Digital del Inspector</label>
+                            <button type="button" class="btn btn-link btn-sm text-danger p-0" onclick="clearSignature()">Limpiar Firma</button>
+                        </div>
+                        <div class="signature-pad-container">
+                            <canvas id="signature-pad" class="signature-pad"></canvas>
+                        </div>
+                        <small class="text-muted">Dibuja tu firma dentro del recuadro con el dedo o el mouse.</small>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mb-5">
+                    <button type="button" class="btn btn-secondary px-4" onclick="showSection('dashboard')">Cancelar</button>
+                    <button type="submit" class="btn btn-success btn-lg px-5">
+                        <i class="fa-solid fa-floppy-disk me-2"></i> Guardar Inspección
+                    </button>
+                </div>
+
+            </form>
         </div>
-      </div>
 
-      <!-- Tabla Equipos de Protección Contra Caídas -->
-      <div class="border border-black">
-        <div class="bg-[#00a66c] text-white font-bold text-center p-1 uppercase">EQUIPOS DE PROTECCIÓN CONTRA CAÍDAS</div>
-        <table class="w-full border-collapse border border-black text-[9px]">
-          <thead>
-            <tr class="bg-slate-200">
-              <th class="border border-black p-1 text-left">ESLINGAS</th>
-              <th class="border border-black w-8">SI</th>
-              <th class="border border-black w-8">NO</th>
-              <th class="border border-black w-8">N/A</th>
-              <th class="border border-black p-1 text-left">OBSERVACIONES</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="border border-black p-1">Eslingas contra caídas certificadas (máx 1.8m, doble seguro).</td>
-              <td class="border border-black text-center"><input type="radio" name="esl_1" value="SI"></td>
-              <td class="border border-black text-center"><input type="radio" name="esl_1" value="NO"></td>
-              <td class="border border-black text-center"><input type="radio" name="esl_1" value="N/A"></td>
-              <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-            </tr>
-            <tr>
-              <td class="border border-black p-1">Eslingas de posicionamiento certificadas.</td>
-              <td class="border border-black text-center"><input type="radio" name="esl_2" value="SI"></td>
-              <td class="border border-black text-center"><input type="radio" name="esl_2" value="NO"></td>
-              <td class="border border-black text-center"><input type="radio" name="esl_2" value="N/A"></td>
-              <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-            </tr>
-            <tr>
-              <td class="border border-black p-1">Eslinga con absorbedor de energía para cubiertas.</td>
-              <td class="border border-black text-center"><input type="radio" name="esl_3" value="SI"></td>
-              <td class="border border-black text-center"><input type="radio" name="esl_3" value="NO"></td>
-              <td class="border border-black text-center"><input type="radio" name="esl_3" value="N/A"></td>
-              <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-            </tr>
-            <tr class="bg-slate-200 font-bold">
-              <td colspan="5" class="border border-black p-1">ANCLAJES Y LÍNEAS DE VIDA CERTIFICADAS</td>
-            </tr>
-            <tr>
-              <td class="border border-black p-1">Líneas de vida portátiles sin fibras cortadas ni añadiduras.</td>
-              <td class="border border-black text-center"><input type="radio" name="anc_1" value="SI"></td>
-              <td class="border border-black text-center"><input type="radio" name="anc_1" value="NO"></td>
-              <td class="border border-black text-center"><input type="radio" name="anc_1" value="N/A"></td>
-              <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-            </tr>
-            <tr>
-              <td class="border border-black p-1">Líneas de vida fijas sin desgastes ni añadiduras.</td>
-              <td class="border border-black text-center"><input type="radio" name="anc_2" value="SI"></td>
-              <td class="border border-black text-center"><input type="radio" name="anc_2" value="NO"></td>
-              <td class="border border-black text-center"><input type="radio" name="anc_2" value="N/A"></td>
-              <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-            </tr>
-            <tr class="bg-slate-200 font-bold">
-              <td colspan="5" class="border border-black p-1">MOSQUETONES</td>
-            </tr>
-            <tr>
-              <td class="border border-black p-1">Mosquetones de doble seguro con bloqueo automático.</td>
-              <td class="border border-black text-center"><input type="radio" name="mosq_1" value="SI"></td>
-              <td class="border border-black text-center"><input type="radio" name="mosq_1" value="NO"></td>
-              <td class="border border-black text-center"><input type="radio" name="mosq_1" value="N/A"></td>
-              <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <!-- SECTION 3: HISTORIAL -->
+        <div id="section-history" class="app-section d-none">
+            <div class="card card-custom p-4">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                    <h4 class="header-title mb-0"><i class="fa-solid fa-boxes-packing me-2"></i>Historial de Registros y Evidencias</h4>
+                    <button class="btn btn-warning text-dark font-bold btn-sm" onclick="exportToExcel()">
+                        <i class="fa-solid fa-file-excel me-1"></i> Descargar Excel (.xlsx)
+                    </button>
+                </div>
 
-      <!-- Sistemas de Acceso -->
-      <div class="border border-black">
-        <div class="bg-[#00a66c] text-white font-bold text-center p-1 uppercase">SISTEMAS DE ACCESO</div>
-        <table class="w-full border-collapse border border-black text-[9px] text-center">
-          <thead>
-            <tr class="bg-slate-200">
-              <th class="border border-black p-1" colspan="2">¿Utilizará este medio?</th>
-              <th class="border border-black p-1" rowspan="2">SISTEMA DE ACCESO</th>
-              <th class="border border-black p-1" colspan="2">Según lista de chequeo</th>
-              <th class="border border-black p-1" rowspan="2">OBSERVACIONES</th>
-            </tr>
-            <tr class="bg-slate-200">
-              <th class="border border-black w-8">SI</th>
-              <th class="border border-black w-8">NO</th>
-              <th class="border border-black w-14">CUMPLE</th>
-              <th class="border border-black w-16">NO CUMPLE</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="border border-black"><input type="radio" name="acc_andamio" value="SI"></td>
-              <td class="border border-black"><input type="radio" name="acc_andamio" value="NO"></td>
-              <td class="border border-black font-bold p-1">ANDAMIOS</td>
-              <td class="border border-black"><input type="radio" name="chk_andamio" value="CUMPLE"></td>
-              <td class="border border-black"><input type="radio" name="chk_andamio" value="NO CUMPLE"></td>
-              <td class="border border-black"><input type="text" class="w-full border-b"></td>
-            </tr>
-            <tr>
-              <td class="border border-black"><input type="radio" name="acc_escalera" value="SI"></td>
-              <td class="border border-black"><input type="radio" name="acc_escalera" value="NO"></td>
-              <td class="border border-black font-bold p-1">ESCALERAS</td>
-              <td class="border border-black"><input type="radio" name="chk_escalera" value="CUMPLE"></td>
-              <td class="border border-black"><input type="radio" name="chk_escalera" value="NO CUMPLE"></td>
-              <td class="border border-black"><input type="text" class="w-full border-b"></td>
-            </tr>
-            <tr>
-              <td class="border border-black"><input type="radio" name="acc_elevador" value="SI"></td>
-              <td class="border border-black"><input type="radio" name="acc_elevador" value="NO"></td>
-              <td class="border border-black font-bold p-1">ELEVADORES</td>
-              <td class="border border-black"><input type="radio" name="chk_elevador" value="CUMPLE"></td>
-              <td class="border border-black"><input type="radio" name="chk_elevador" value="NO CUMPLE"></td>
-              <td class="border border-black"><input type="text" class="w-full border-b"></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>ID Botiquín</th>
+                                <th>Ubicación</th>
+                                <th>Tipo</th>
+                                <th>Subtipo</th>
+                                <th>Capacidad</th>
+                                <th>Estado</th>
+                                <th>Inspector</th>
+                                <th>Próxima Revisión</th>
+                                <th class="text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
     </div>
 
-    <!-- ==========================================
-         PÁGINA 2: REGISTRO PERSONAL Y ATS
-    ========================================== -->
-    <div class="bg-white p-4 border border-black space-y-3 page-break">
-      
-      <div class="bg-[#00a66c] text-white font-bold text-center p-1 uppercase">
-        VERIFICACIÓN TRABAJADORES Y ELEMENTOS DE PROTECCIÓN PERSONAL Y EQUIPOS DE PROTECCIÓN CONTRA CAÍDAS (TODO EL PERSONAL)
-      </div>
+    <!-- CONTENEDOR DE IMPRESIÓN DIRECTA -->
+    <div id="print-area"></div>
 
-      <!-- 1. Personas Autorizadas -->
-      <div class="border border-black overflow-x-auto">
-        <div class="bg-slate-200 font-bold p-1 border-b border-black">1. PERSONAS AUTORIZADAS PARA TRABAJAR EN ALTURAS</div>
-        <table id="tabla_trabajadores" class="w-full border-collapse border border-black text-[7.5px] text-center">
-          <thead>
-            <tr class="bg-slate-100 font-bold">
-              <th rowspan="3" class="border border-black p-1 w-20">Número del documento de identidad</th>
-              <th rowspan="3" class="border border-black p-1">Nombres y apellidos</th>
-              <th rowspan="3" class="border border-black p-1 w-10">ARL</th>
-              <th colspan="8" class="border border-black p-0.5">Verificación por Seguridad y Salud en el Trabajo</th>
-              <th colspan="9" class="border border-black p-0.5 bg-slate-200">ESTADO DE ELEMENTOS (B=Bueno, M=Malo)</th>
-              <th rowspan="3" class="border border-black p-1 w-28 bg-emerald-100">FIRMA DEL TRABAJADOR</th>
-            </tr>
-            <tr class="bg-slate-100 font-bold text-[7px]">
-              <th colspan="2" class="border border-black p-0.5 h-20"><div class="vertical-header">¿Su estado de salud es óptimo para realizar la labor?</div></th>
-              <th colspan="2" class="border border-black p-0.5 h-20"><div class="vertical-header">¿Cuenta con concepto médico apto sin restricción para el cargo?</div></th>
-              <th colspan="2" class="border border-black p-0.5 h-20"><div class="vertical-header">¿Se encuentra afiliado al sistema de seguridad social?</div></th>
-              <th colspan="2" class="border border-black p-0.5 h-20"><div class="vertical-header">¿Cuenta con certificado vigente para realizar labores en alturas?</div></th>
-              <th class="border border-black p-0.5 h-20"><div class="vertical-header">(1) Arnés</div></th>
-              <th class="border border-black p-0.5 h-20"><div class="vertical-header">1era eslinga</div></th>
-              <th class="border border-black p-0.5 h-20"><div class="vertical-header">2da eslinga</div></th>
-              <th class="border border-black p-0.5 h-20"><div class="vertical-header">(1) Casco Tipo II</div></th>
-              <th class="border border-black p-0.5 h-20"><div class="vertical-header">(1) Barbuquejo</div></th>
-              <th class="border border-black p-0.5 h-20"><div class="vertical-header">(1) Lentes de seguridad</div></th>
-              <th class="border border-black p-0.5 h-20"><div class="vertical-header">(1) Guantes</div></th>
-              <th class="border border-black p-0.5 h-20"><div class="vertical-header">(1) Portaherramientas</div></th>
-              <th class="border border-black p-0.5 h-20"><div class="vertical-header">Bota tipo Militar</div></th>
-            </tr>
-            <tr class="bg-slate-200 font-bold text-[6.5px]">
-              <th class="border border-black w-4">SI</th><th class="border border-black w-4">NO</th>
-              <th class="border border-black w-4">SI</th><th class="border border-black w-4">NO</th>
-              <th class="border border-black w-4">SI</th><th class="border border-black w-4">NO</th>
-              <th class="border border-black w-4">SI</th><th class="border border-black w-4">NO</th>
-              <th colspan="9" class="border border-black">B = Bueno / M = Malo</th>
-            </tr>
-          </thead>
-          <tbody>
-            <script>
-              for(let i = 1; i <= 10; i++) {
-                document.write(`
-                  <tr class="h-12">
-                    <td class="border border-black p-0.5"><input type="text" class="w-full h-full text-center focus:outline-none" data-field="doc"></td>
-                    <td class="border border-black p-0.5"><input type="text" class="w-full h-full text-left px-1 focus:outline-none" data-field="nombre"></td>
-                    <td class="border border-black p-0.5"><input type="text" class="w-full h-full text-center focus:outline-none" data-field="arl"></td>
-                    
-                    <td class="border border-black"><input type="radio" name="salud_${i}" value="SI"></td>
-                    <td class="border border-black"><input type="radio" name="salud_${i}" value="NO"></td>
-                    <td class="border border-black"><input type="radio" name="apto_${i}" value="SI"></td>
-                    <td class="border border-black"><input type="radio" name="apto_${i}" value="NO"></td>
-                    <td class="border border-black"><input type="radio" name="ss_${i}" value="SI"></td>
-                    <td class="border border-black"><input type="radio" name="ss_${i}" value="NO"></td>
-                    <td class="border border-black"><input type="radio" name="tsa_${i}" value="SI"></td>
-                    <td class="border border-black"><input type="radio" name="tsa_${i}" value="NO"></td>
-
-                    ${Array.from({length: 9}).map(() => `
-                      <td class="border border-black cursor-pointer select-none font-bold text-[7px]" onclick="toggleBM(this)">-</td>
-                    `).join('')}
-
-                    <td class="border border-black p-0.5 relative text-center bg-white">
-                      <canvas id="f_trab_${i}" width="110" height="35" class="border border-slate-300 mx-auto cursor-crosshair block"></canvas>
-                      <button type="button" onclick="borrarFirma('f_trab_${i}')" class="text-[6px] text-red-600 underline no-print mt-0.5">Borrar</button>
-                    </td>
-                  </tr>
-                `);
-              }
-            </script>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- 2. Ayudante de Seguridad -->
-      <div class="border border-black overflow-x-auto">
-        <div class="bg-slate-200 font-bold p-1 border-b border-black">2. AYUDANTE DE SEGURIDAD</div>
-        <table id="tabla_ayudantes" class="w-full border-collapse border border-black text-[7.5px] text-center">
-          <thead>
-            <tr class="bg-slate-100 font-bold">
-              <th rowspan="3" class="border border-black p-1 w-20">Número del documento de identidad</th>
-              <th rowspan="3" class="border border-black p-1">Nombres y apellidos</th>
-              <th rowspan="3" class="border border-black p-1 w-10">ARL</th>
-              <th colspan="8" class="border border-black p-0.5">Verificación por Seguridad y Salud en el Trabajo</th>
-              <th colspan="9" class="border border-black p-0.5 bg-slate-200">ESTADO DE ELEMENTOS (B=Bueno, M=Malo)</th>
-              <th rowspan="3" class="border border-black p-1 w-28 bg-emerald-100">FIRMA DEL AYUDANTE</th>
-            </tr>
-            <tr class="bg-slate-100 font-bold text-[7px]">
-              <th colspan="2" class="border border-black p-0.5 h-16"><div class="vertical-header">¿Estado salud?</div></th>
-              <th colspan="2" class="border border-black p-0.5 h-16"><div class="vertical-header">¿Concepto apto?</div></th>
-              <th colspan="2" class="border border-black p-0.5 h-16"><div class="vertical-header">¿Seguridad social?</div></th>
-              <th colspan="2" class="border border-black p-0.5 h-16"><div class="vertical-header">¿Certificado TSA?</div></th>
-              <th class="border border-black p-0.5 h-16"><div class="vertical-header">(1) Arnés</div></th>
-              <th class="border border-black p-0.5 h-16"><div class="vertical-header">1era eslinga</div></th>
-              <th class="border border-black p-0.5 h-16"><div class="vertical-header">2da eslinga</div></th>
-              <th class="border border-black p-0.5 h-16"><div class="vertical-header">(1) Casco Tipo II</div></th>
-              <th class="border border-black p-0.5 h-16"><div class="vertical-header">(1) Barbuquejo</div></th>
-              <th class="border border-black p-0.5 h-16"><div class="vertical-header">(1) Lentes</div></th>
-              <th class="border border-black p-0.5 h-16"><div class="vertical-header">(1) Guantes</div></th>
-              <th class="border border-black p-0.5 h-16"><div class="vertical-header">(1) Portaherr.</div></th>
-              <th class="border border-black p-0.5 h-16"><div class="vertical-header">Bota Militar</div></th>
-            </tr>
-            <tr class="bg-slate-200 font-bold text-[6.5px]">
-              <th class="border border-black w-4">SI</th><th class="border border-black w-4">NO</th>
-              <th class="border border-black w-4">SI</th><th class="border border-black w-4">NO</th>
-              <th class="border border-black w-4">SI</th><th class="border border-black w-4">NO</th>
-              <th class="border border-black w-4">SI</th><th class="border border-black w-4">NO</th>
-              <th colspan="9" class="border border-black">B / M</th>
-            </tr>
-          </thead>
-          <tbody>
-            <script>
-              for(let i = 1; i <= 2; i++) {
-                document.write(`
-                  <tr class="h-12">
-                    <td class="border border-black p-0.5"><input type="text" class="w-full h-full text-center focus:outline-none" data-field="doc"></td>
-                    <td class="border border-black p-0.5"><input type="text" class="w-full h-full text-left px-1 focus:outline-none" data-field="nombre"></td>
-                    <td class="border border-black p-0.5"><input type="text" class="w-full h-full text-center focus:outline-none" data-field="arl"></td>
-                    
-                    <td class="border border-black"><input type="radio" name="ay_salud_${i}" value="SI"></td>
-                    <td class="border border-black"><input type="radio" name="ay_salud_${i}" value="NO"></td>
-                    <td class="border border-black"><input type="radio" name="ay_apto_${i}" value="SI"></td>
-                    <td class="border border-black"><input type="radio" name="ay_apto_${i}" value="NO"></td>
-                    <td class="border border-black"><input type="radio" name="ay_ss_${i}" value="SI"></td>
-                    <td class="border border-black"><input type="radio" name="ay_ss_${i}" value="NO"></td>
-                    <td class="border border-black"><input type="radio" name="ay_tsa_${i}" value="SI"></td>
-                    <td class="border border-black"><input type="radio" name="ay_tsa_${i}" value="NO"></td>
-
-                    ${Array.from({length: 9}).map(() => `
-                      <td class="border border-black cursor-pointer select-none font-bold text-[7px]" onclick="toggleBM(this)">-</td>
-                    `).join('')}
-
-                    <td class="border border-black p-0.5 relative text-center bg-white">
-                      <canvas id="f_ay_${i}" width="110" height="35" class="border border-slate-300 mx-auto cursor-crosshair block"></canvas>
-                      <button type="button" onclick="borrarFirma('f_ay_${i}')" class="text-[6px] text-red-600 underline no-print mt-0.5">Borrar</button>
-                    </td>
-                  </tr>
-                `);
-              }
-            </script>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="text-[8px] font-bold underline">Nota: Al firmar este documento declaro que me fue divulgado, lo entiendo y cumpliré todos los procedimientos descritos.</div>
-
-      <!-- ATS -->
-      <div class="border border-black">
-        <div class="bg-[#00a66c] text-white font-bold text-center p-1 uppercase">ANÁLISIS DE TRABAJO SEGURO - ATS</div>
-        <table id="tabla_ats" class="w-full border-collapse border border-black text-[8px]">
-          <thead>
-            <tr class="bg-slate-200 text-center">
-              <th class="border border-black w-6">#</th>
-              <th class="border border-black p-1">PASOS DE LA TAREA (Descripción detallada)</th>
-              <th class="border border-black p-1">PELIGROS Y/O RIESGOS POTENCIALES</th>
-              <th class="border border-black p-1">CONTROLES</th>
-            </tr>
-          </thead>
-          <tbody>
-            <script>
-              for(let i=1; i<=10; i++) {
-                document.write(`
-                  <tr>
-                    <td class="border border-black text-center font-bold">${i}</td>
-                    <td class="border border-black p-0.5"><input type="text" class="w-full border-b focus:outline-none"></td>
-                    <td class="border border-black p-0.5"><input type="text" class="w-full border-b focus:outline-none"></td>
-                    <td class="border border-black p-0.5"><input type="text" class="w-full border-b focus:outline-none"></td>
-                  </tr>
-                `);
-              }
-            </script>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Herramientas -->
-      <div class="border border-black p-2">
-        <span class="font-bold">HERRAMIENTAS DE TRABAJO (Mencione las herramientas a utilizar durante la labor):</span>
-        <textarea class="border w-full p-1 h-10 mt-1"></textarea>
-      </div>
-
+    <!-- MODALES -->
+    <div class="modal fade no-print" id="qrModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="fa-solid fa-camera me-2"></i>Escanear Código QR del Botiquín</h5>
+                    <button type="button" class="btn-close btn-close-white" onclick="closeQRModal()"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div id="reader"></div>
+                    <p class="text-muted mt-2 small">Apunta con la cámara al código QR del botiquín.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeQRModal()">Cerrar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- ==========================================
-         PÁGINA 3: CONDICIONES, EMERGENCIAS Y FIRMAS
-    ========================================== -->
-    <div class="bg-white p-4 border border-black space-y-3 page-break">
-      
-      <div class="bg-[#00a66c] text-white font-bold text-center p-1 uppercase">VERIFICACIÓN DE CONDICIONES</div>
-      <div class="text-center font-bold text-[8px] -mt-2">Escriba el numero de líneas de vida (cuerdas) que se requieren para realizar la labor de forma segura</div>
-
-      <!-- Tabla de Condiciones -->
-      <table class="w-full border-collapse border border-black text-[8px]">
-        <thead>
-          <tr class="bg-slate-200">
-            <th class="border border-black p-1 text-left" colspan="2">CONDICIÓN</th>
-            <th class="border border-black w-6">SI</th>
-            <th class="border border-black w-6">NO</th>
-            <th class="border border-black w-6">N/A</th>
-            <th class="border border-black p-1 text-left">OBSERVACIÓN</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="border border-black font-bold p-1" rowspan="3">Líneas de vida</td>
-            <td class="border border-black p-1">Se cuenta con un numero suficiente de líneas de vida (cuerdas) necesarias para realizar la labor.</td>
-            <td class="border border-black text-center"><input type="radio" name="c1" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c1" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c1" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black p-1">Las cuerdas para línea de vida están en buen estado, sin añadiduras ni desgarro del material.</td>
-            <td class="border border-black text-center"><input type="radio" name="c2" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c2" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c2" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black p-1">La cuerda para línea de vida cuenta con un mosquetón en uno de los extremos para ser asegurada.</td>
-            <td class="border border-black text-center"><input type="radio" name="c3" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c3" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c3" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black font-bold p-1" rowspan="3">Invernaderos</td>
-            <td class="border border-black p-1">Los invernaderos a trabajar cuentan con sistema de línea soporte para instalación de líneas de vida.</td>
-            <td class="border border-black text-center"><input type="radio" name="c4" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c4" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c4" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black p-1">Las cerchas de los invernaderos están en buen estado y permiten la movilización segura del equipo de trabajo.</td>
-            <td class="border border-black text-center"><input type="radio" name="c5" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c5" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c5" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black p-1">Se aplico la lista de chequeo para invernaderos y cumple para realizar la labor.</td>
-            <td class="border border-black text-center"><input type="radio" name="c6" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c6" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c6" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black font-bold p-1" rowspan="3">Zona de trabajo</td>
-            <td class="border border-black p-1">Se han instalado cintas, barreras o barandas para aislar la zona y no permitir el paso de vehículos o personas.</td>
-            <td class="border border-black text-center"><input type="radio" name="c7" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c7" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c7" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black p-1">Se garantiza la aplicación del procedimiento de trabajo seguro para labores en invernaderos a menos de 7 metros de proximidad a líneas de media tensión.</td>
-            <td class="border border-black text-center"><input type="radio" name="c8" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c8" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c8" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black p-1">Se garantizan optimas condiciones climáticas para el desarrollo de la labor.</td>
-            <td class="border border-black text-center"><input type="radio" name="c9" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c9" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c9" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black font-bold p-1" rowspan="2">Elementos de trabajo</td>
-            <td class="border border-black p-1">Los elementos y herramientas para realizar la labor se encuentran en buenas condiciones.</td>
-            <td class="border border-black text-center"><input type="radio" name="c10" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c10" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c10" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black p-1">Se cuenta con escaleras dieléctricas para realizar la labor.</td>
-            <td class="border border-black text-center"><input type="radio" name="c11" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c11" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c11" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black font-bold p-1" rowspan="2">Trabajo en cubiertas</td>
-            <td class="border border-black p-1">La cubierta esta en buen estado para su transito.</td>
-            <td class="border border-black text-center"><input type="radio" name="c12" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c12" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c12" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black p-1">Se cuenta con línea de vida conectada a anclaje fijo certificado.</td>
-            <td class="border border-black text-center"><input type="radio" name="c13" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c13" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c13" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black font-bold p-1" rowspan="3">Personas</td>
-            <td class="border border-black p-1">Las personas encargadas de ejecutar la labor han recibido instrucciones para realizarla en forma segura.</td>
-            <td class="border border-black text-center"><input type="radio" name="c14" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c14" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c14" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black p-1">Se verifica la integridad de los puntos de anclaje por trabajador.</td>
-            <td class="border border-black text-center"><input type="radio" name="c15" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c15" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c15" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-          <tr>
-            <td class="border border-black p-1">Se supervisa la labor durante la ejecución de la labor.</td>
-            <td class="border border-black text-center"><input type="radio" name="c16" value="SI"></td>
-            <td class="border border-black text-center"><input type="radio" name="c16" value="NO"></td>
-            <td class="border border-black text-center"><input type="radio" name="c16" value="N/A"></td>
-            <td class="border border-black p-1"><input type="text" class="w-full border-b"></td>
-          </tr>
-        </tbody>
-      </table>
-
-      <!-- Riesgos Asociados -->
-      <div class="border border-black">
-        <div class="bg-[#00a66c] text-white font-bold text-center p-0.5 uppercase">RIESGOS ASOCIADOS</div>
-        <div class="p-1 font-bold text-[7.5px] border-b border-black">SI APLICA OTRO PELIGRO DIFERENTE A ALTURAS INDIQUE Y SI ES EL CASO ADJUNTE EL PERMISO CORRESPONDIENTE A CADA UNO DE ELLOS:</div>
-        <div class="grid grid-cols-3 border-collapse text-[8px]">
-          <div class="border-r border-b border-black p-1 flex items-center gap-1"><input type="checkbox"> <span>QUÍMICO:</span> <input type="text" class="border-b w-full"></div>
-          <div class="border-r border-b border-black p-1 flex items-center gap-1"><input type="checkbox"> <span>BIOMECÁNICO:</span> <input type="text" class="border-b w-full"></div>
-          <div class="border-b border-black p-1 flex items-center gap-1"><input type="checkbox"> <span>ELÉCTRICO: Líneas media tensión &lt;7m</span></div>
-
-          <div class="border-r border-b border-black p-1 flex items-center gap-1"><input type="checkbox"> <span>MECÁNICO:</span> <input type="text" class="border-b w-full"></div>
-          <div class="border-r border-b border-black p-1 flex items-center gap-1"><input type="checkbox"> <span>LOCATIVO:</span> <input type="text" class="border-b w-full"></div>
-          <div class="border-b border-black p-1 flex items-center gap-1"><input type="checkbox"> <span>TRABAJO EN CALIENTE:</span> <input type="text" class="border-b w-full"></div>
-
-          <div class="border-r border-black p-1 flex items-center gap-1"><input type="checkbox"> <span>FÍSICO:</span> <input type="text" class="border-b w-full"></div>
-          <div class="border-r border-b border-black p-1 flex items-center gap-1"><input type="checkbox"> <span>ESPACIOS CONFINADOS:</span> <input type="text" class="border-b w-full"></div>
-          <div class="p-1 flex items-center gap-1"><input type="checkbox"> <span>OTRO:</span> <input type="text" class="border-b w-full"></div>
+    <div class="modal fade no-print" id="detailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="modal-detail-title">Detalle de Inspección</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="modal-detail-body"></div>
+            </div>
         </div>
-      </div>
-
-      <!-- Medidas en Caso de Emergencia -->
-      <div class="border border-black">
-        <div class="bg-[#00a66c] text-white font-bold text-center p-0.5 uppercase">MEDIDAS EN CASO DE EMERGENCIA</div>
-        <div class="grid grid-cols-12 text-[8px]">
-          <div class="col-span-5 border-r border-black p-1 flex items-center gap-1">
-            <span class="font-bold">1. Comunicar a Jefe inmediato o Contratante:</span>
-            <input type="text" class="border-b w-full">
-          </div>
-          <div class="col-span-4 border-r border-black p-1 flex items-center gap-1">
-            <span class="font-bold">2. Brigadista encargado:</span>
-            <input type="text" class="border-b w-full">
-          </div>
-          <div class="col-span-3 p-1 flex items-center gap-1">
-            <span class="font-bold">OTRO:</span>
-            <input type="text" class="border-b w-full">
-          </div>
-        </div>
-      </div>
-
-      <!-- Rescate -->
-      <div class="border border-black">
-        <div class="bg-[#00a66c] text-white font-bold text-center p-0.5 uppercase">RESCATE</div>
-        <table class="w-full border-collapse text-[8px]">
-          <tbody>
-            <tr class="border-b border-black">
-              <td class="p-1 border-r border-black font-semibold">Se cuenta con elementos para rescate por caída de altura</td>
-              <td class="w-12 border-r border-black text-center"><label><input type="radio" name="resc_1"> SI</label> <label><input type="radio" name="resc_1"> NO</label></td>
-              <td class="p-1"><span class="text-slate-400">NOMBRE LOS EQUIPOS:</span> <input type="text" class="border-b w-3/4"></td>
-            </tr>
-            <tr>
-              <td class="p-1 border-r border-black font-semibold">Existe personal designado y capacitado para el rescate en alturas</td>
-              <td class="w-12 border-r border-black text-center"><label><input type="radio" name="resc_2"> SI</label> <label><input type="radio" name="resc_2"> NO</label></td>
-              <td class="p-1"><span class="text-slate-400">NOMBRE LAS PERSONAS:</span> <input type="text" class="border-b w-3/4"></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Observaciones Adicionales -->
-      <div class="border border-black">
-        <div class="bg-[#00a66c] text-white font-bold text-center p-0.5 uppercase">OBSERVACIONES</div>
-        <div class="p-1">
-          <span class="font-bold">Observaciones adicionales:</span>
-          <textarea class="w-full border p-1 h-8 mt-1"></textarea>
-        </div>
-      </div>
-
-      <!-- Firmas Autorizaciones -->
-      <div class="border border-black">
-        <div class="bg-[#00a66c] text-white font-bold text-center p-0.5 uppercase">
-          PERSONAS HABILITADAS PARA AUTORIZAR Y VALIDAR EL PERMISO DE TRABAJO
-        </div>
-        <div class="text-[7.5px] text-center italic border-b border-black p-0.5">La persona autorizada para validar el permiso de trabajo en alturas en el desarrollo de actividades el jefe inmediato</div>
-        
-        <div class="grid grid-cols-2 border-b border-black text-[8px]">
-          <div class="border-r border-black p-1 text-center">
-            <p class="font-bold">NOMBRE, APELLIDO Y FIRMA DE QUIEN AUTORIZA EL TRABAJO (Jefe de área)</p>
-            <input type="text" class="w-full border-b text-center mb-1 placeholder-slate-400" placeholder="Nombre completo">
-            <canvas id="f_aut" width="220" height="40" class="border bg-white cursor-crosshair mx-auto block"></canvas>
-            <button type="button" onclick="borrarFirma('f_aut')" class="text-[6px] text-red-600 underline no-print mt-0.5">Borrar firma</button>
-          </div>
-          <div class="p-1 text-center">
-            <p class="font-bold">NOMBRE, APELLIDO Y FIRMA DEL RESPONSABLE DE ACTIVAR EL PLAN DE EMERGENCIAS (Ayudante de seguridad)</p>
-            <input type="text" class="w-full border-b text-center mb-1 placeholder-slate-400" placeholder="Nombre completo">
-            <canvas id="f_emerg" width="220" height="40" class="border bg-white cursor-crosshair mx-auto block"></canvas>
-            <button type="button" onclick="borrarFirma('f_emerg')" class="text-[6px] text-red-600 underline no-print mt-0.5">Borrar firma</button>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 text-[8px]">
-          <div class="border-r border-black p-1 text-center">
-            <p class="font-bold">NOMBRE Y FIRMA EMISOR DEL PERMISO (Coordinador de trabajo en alturas)</p>
-            <p class="text-[6.5px] italic">He inspeccionado y comprobado personalmente en el área de trabajo, el cumplimiento de todos los requisitos de seguridad indicadas en cada uno de los ítems del permiso.</p>
-            <input type="text" class="w-full border-b text-center mb-1 placeholder-slate-400" placeholder="Nombre completo">
-            <canvas id="f_emisor" width="220" height="40" class="border bg-white cursor-crosshair mx-auto block"></canvas>
-            <button type="button" onclick="borrarFirma('f_emisor')" class="text-[6px] text-red-600 underline no-print mt-0.5">Borrar firma</button>
-          </div>
-          <div class="p-1 text-center">
-            <p class="font-bold">NOMBRE Y FIRMA EMISOR DEL PERMISO (Coordinador de trabajo en alturas del CONTRATISTA / Si aplica)</p>
-            <p class="text-[6.5px] italic">He inspeccionado y comprobado personalmente en el área de trabajo, el cumplimiento de todos los requisitos de seguridad indicadas en cada uno de los ítems del permiso.</p>
-            <input type="text" class="w-full border-b text-center mb-1 placeholder-slate-400" placeholder="Nombre completo">
-            <canvas id="f_contratista" width="220" height="40" class="border bg-white cursor-crosshair mx-auto block"></canvas>
-            <button type="button" onclick="borrarFirma('f_contratista')" class="text-[6px] text-red-600 underline no-print mt-0.5">Borrar firma</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Cierre y Suspensión -->
-      <div class="grid grid-cols-12 border border-black text-[8px]">
-        <div class="col-span-6 border-r border-black p-1 text-center space-y-1">
-          <p class="font-bold uppercase bg-[#00a66c] text-white text-center p-0.5">CIERRE</p>
-          <input type="text" id="nombre_cierre" class="w-full border-b border-black text-center focus:outline-none text-[8px] py-0.5 mt-1" placeholder="Nombre completo">
-          <canvas id="f_cierre" width="220" height="40" class="border bg-white cursor-crosshair mx-auto block mt-1"></canvas>
-          <button type="button" onclick="borrarFirma('f_cierre')" class="text-[6px] text-red-600 underline no-print">Borrar firma</button>
-          <p class="font-bold text-center mt-0.5">NOMBRE Y FIRMA (persona autorizada y competente para firmar)</p>
-          <p class="text-[6.5px] text-slate-500 italic text-center mt-1">Solamente puede cerrar este permiso el COORDINADOR TA, el administrador de PPPCC el Jefe inmediato o en caso de suspensión el área encargada</p>
-        </div>
-        <div class="col-span-6 p-1">
-          <p class="font-bold uppercase bg-[#00a66c] text-white text-center p-0.5">SUSPENSIÓN DEL TRABAJO POR CONDICIONES Y ACTOS INSEGUROS</p>
-          <p class="font-bold mt-1">Se cancela o se suspende debido a:</p>
-          <input type="text" class="w-full border-b">
-          <input type="text" class="w-full border-b mt-1">
-          <div class="grid grid-cols-3 gap-1 mt-2 text-center border-t border-black pt-1">
-            <div><span class="font-bold">FECHA:</span> <input type="date" class="border w-full"></div>
-            <div><span class="font-bold">HORA:</span> <input type="time" class="border w-full"></div>
-            <div><span class="font-bold">AUTORIDAD DE ÁREA</span><input type="text" class="border-b w-full"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- REGISTRO FOTOGRÁFICO / EVIDENCIA -->
-      <div class="border border-black">
-        <div class="bg-[#00a66c] text-white font-bold text-center p-0.5 uppercase">
-          REGISTRO FOTOGRÁFICO / EVIDENCIA DE LA LABOR
-        </div>
-        <div class="p-2 space-y-2">
-          <div class="flex flex-wrap items-center gap-2 no-print">
-            <label for="input_fotos" class="bg-[#00a66c] hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded cursor-pointer inline-flex items-center gap-1.5 text-[10px]">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-              </svg>
-              Tomar Foto / Adjuntar Evidencia
-            </label>
-            <input type="file" id="input_fotos" accept="image/*" capture="environment" multiple class="hidden" onchange="agregarFotos(event)">
-            <span class="text-[8px] text-slate-500">Puede tomar o seleccionar varias fotos (se ajustan automáticamente al imprimir).</span>
-          </div>
-
-          <div id="galeria_fotos" class="grid grid-cols-2 md:grid-cols-3 gap-2 pt-1"></div>
-        </div>
-      </div>
-
     </div>
+<!-- Bootstrap & Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const checklistItems = [
+            "SOLUCION SALINA (1)",   
+            "AEROMÁSCARA (1)",
+            "CINTA MICROPORE (1)",
+            "ESFERO",
+            "LIBRETA",
+            "PARCHE OCULAR (5)",
+            "TIJERA",
+            "VENDA (3)",
+            "GUANTE ESTÉRIL (5)",
+            "CURITAS (10)",
+            "GASAS (20)",
+            "APLICADORES DE MADERA",
+            "BAJA LENGUAS (5)",
+            "TODOS LOS ELEMENTOS SE ENCUENTRAN...",
+            "¿SE ENCUENTRA SEÑALIZADO?",
+            "¿EN CORRECTO ESTADO DE ORDEN Y ASEO?",
+            "EL BOTIQUIN SE ENCUENTRA SEÑALADO",
+            "EXISTE UN INVENTARIO ACTUALIZADO DEL CONTENIDO DEL BOTIQUIN",
+            "SE REGISTRA FECHA DE LA ULTIMA INSPECCION",
+            "SE HAN RETIRADO LOS ELEMENTOS VENCIDOS, DETERIORADOS O CONTAMINADOS"
+        ];
 
-    <!-- BOTÓN FINAL DE IMPRESIÓN / PDF -->
-    <div class="flex justify-end pb-6 no-print">
-      <button onclick="window.print()" class="bg-[#00a66c] hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded shadow-lg flex items-center gap-2 text-xs">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-        Imprimir / Guardar PDF
-      </button>
-    </div>
+        const masterBotiquines = [
+            { id: "BOT-001", ubicacion: "Porteria", tipo: "Tipo A", sub: "Gabinete Fijo", cap: "Mediano" },
+            { id: "BOT-002", ubicacion: "Consultorio medico", tipo: "Tipo A", sub: "Gabinete Fijo", cap: "Mediano" },
+            { id: "BOT-003", ubicacion: "Oficina ADM", tipo: "Tipo B", sub: "Maletín Portátil", cap: "Grande" },
+            { id: "BOT-004", ubicacion: "Oficina de atencion", tipo: "Tipo A", sub: "Gabinete Fijo", cap: "Mediano" },
+            { id: "BOT-005", ubicacion: "Casino", tipo: "Tipo B", sub: "Gabinete Fijo", cap: "Grande" },
+            { id: "BOT-006", ubicacion: "Poscosecha", tipo: "Tipo A", sub: "Gabinete Fijo", cap: "Mediano" },
+            { id: "BOT-007", ubicacion: "Bomba mirfe 1", tipo: "Tipo A", sub: "Gabinete Fijo", cap: "Mediano" },
+            { id: "BOT-008", ubicacion: "Bomba mirfe 2", tipo: "Tipo A", sub: "Gabinete Fijo", cap: "Mediano" },
+            { id: "BOT-009", ubicacion: "Taller MTTO", tipo: "Tipo B", sub: "Maletín Portátil", cap: "Grande" },
+            { id: "BOT-010", ubicacion: "Bomba mipe 1", tipo: "Tipo A", sub: "Gabinete Fijo", cap: "Mediano" },
+            { id: "BOT-011", ubicacion: "Bomba mipe 2", tipo: "Tipo A", sub: "Gabinete Fijo", cap: "Mediano" },
+            { id: "BOT-012", ubicacion: "Bomba mipe 3", tipo: "Tipo A", sub: "Gabinete Fijo", cap: "Pequeño" },
+            { id: "BOT-013", ubicacion: "Bomba mipe 4", tipo: "Tipo A", sub: "Gabinete Fijo", cap: "Mediano" },
+            { id: "BOT-014", ubicacion: "Bomba mipe 5", tipo: "Tipo A", sub: "Gabinete Fijo", cap: "Mediano" }
+        ];
 
-  </div>
+        let inspections = [];
+        let currentPhotos = [];
+        let html5QrCode = null;
+        let signaturePad = null;
 
-  <script>
-    const STORAGE_KEY = 'permiso_alturas_borrador_v1';
-    let hayCambiosSinGuardar = false;
-
-    // 1. ALERTA SI INTENTAN RECARGAR O CERRAR LA PÁGINA
-    window.addEventListener('beforeunload', function (e) {
-      if (hayCambiosSinGuardar) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    });
-
-    // 2. CAMBIO B / M CON GUARDADO
-    function toggleBM(cell) {
-      if (cell.innerText === '-') {
-        cell.innerText = 'B';
-        cell.className = 'border border-black cursor-pointer select-none font-bold text-[8px] bg-green-100 text-green-800';
-      } else if (cell.innerText === 'B') {
-        cell.innerText = 'M';
-        cell.className = 'border border-black cursor-pointer select-none font-bold text-[8px] bg-red-100 text-red-800';
-      } else {
-        cell.innerText = '-';
-        cell.className = 'border border-black cursor-pointer select-none font-bold text-[7px]';
-      }
-      guardarBorrador();
-    }
-
-    // 3. MANEJO DE FOTOS
-    function agregarFotos(event) {
-      const files = event.target.files;
-      const galeria = document.getElementById('galeria_fotos');
-      if (!files || !galeria) return;
-
-      Array.from(files).forEach(file => {
-        if (!file.type.startsWith('image/')) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const card = document.createElement('div');
-          card.className = 'border border-black p-1 bg-slate-50 flex flex-col items-center relative break-inside-avoid';
-          card.innerHTML = `
-            <img src="${e.target.result}" class="w-full h-36 object-contain bg-white border border-slate-300">
-            <input type="text" placeholder="Descripción de la foto (opcional)" class="w-full border-b border-black text-[8px] mt-1 px-1 bg-transparent focus:outline-none">
-            <button type="button" onclick="if(confirm('¿Eliminar esta foto?')) { this.parentElement.remove(); guardarBorrador(); }" class="text-[7px] text-red-600 underline mt-1 no-print">Eliminar foto</button>
-          `;
-          galeria.appendChild(card);
-          guardarBorrador();
+        window.onload = function() {
+            populateBotiquinDropdown();
+            loadStorage();
+            renderChecklistTable();
+            updateDashboard();
+            renderHistory();
+            initSignaturePad();
+            checkUrlParams();
         };
-        reader.readAsDataURL(file);
-      });
-      event.target.value = '';
-    }
 
-    // 4. LIENZOS DE FIRMA
-    function getCanvasIds() {
-      let ids = ['f_aut', 'f_emerg', 'f_emisor', 'f_contratista', 'f_cierre'];
-      for(let i=1; i<=10; i++) ids.push('f_trab_' + i);
-      for(let i=1; i<=2; i++) ids.push('f_ay_' + i);
-      return ids;
-    }
-
-    function initCanvas() {
-      getCanvasIds().forEach(id => {
-        const cvs = document.getElementById(id);
-        if(!cvs) return;
-        const ctx = cvs.getContext('2d');
-        let drawing = false;
-
-        function start(e) {
-          drawing = true;
-          ctx.beginPath();
-          const p = getPos(e, cvs);
-          ctx.moveTo(p.x, p.y);
-        }
-        function move(e) {
-          if(!drawing) return;
-          e.preventDefault();
-          const p = getPos(e, cvs);
-          ctx.lineTo(p.x, p.y);
-          ctx.lineWidth = 1.5;
-          ctx.strokeStyle = '#000';
-          ctx.stroke();
-        }
-        function stop() {
-          if (drawing) {
-            drawing = false;
-            guardarBorrador();
-          }
-        }
-        
-        function getPos(e, c) {
-          const r = c.getBoundingClientRect();
-          const cx = e.touches ? e.touches[0].clientX : e.clientX;
-          const cy = e.touches ? e.touches[0].clientY : e.clientY;
-          return { x: (cx - r.left) * (c.width / r.width), y: (cy - r.top) * (c.height / r.height) };
+        function populateBotiquinDropdown() {
+            const select = document.getElementById('bot-id');
+            select.innerHTML = '<option value="">Seleccione o escanee...</option>';
+            masterBotiquines.forEach(bot => {
+                const opt = document.createElement('option');
+                opt.value = bot.id;
+                opt.textContent = `${bot.id} - ${bot.ubicacion}`;
+                select.appendChild(opt);
+            });
         }
 
-        cvs.addEventListener('mousedown', start);
-        cvs.addEventListener('mousemove', move);
-        cvs.addEventListener('mouseup', stop);
-        cvs.addEventListener('touchstart', start, {passive: false});
-        cvs.addEventListener('touchmove', move, {passive: false});
-        cvs.addEventListener('touchend', stop);
-      });
-    }
-
-    function borrarFirma(id) {
-      if (!confirm('¿Seguro que deseas borrar esta firma?')) return;
-      const c = document.getElementById(id);
-      if(c) {
-        c.getContext('2d').clearRect(0, 0, c.width, c.height);
-        guardarBorrador();
-      }
-    }
-
-    // 5. SISTEMA DE AUTOGUARDADO Y RECUPERACIÓN
-    function guardarBorrador() {
-      hayCambiosSinGuardar = true;
-      const data = {
-        inputs: [],
-        bm: [],
-        firmas: {},
-        htmlFotos: document.getElementById('galeria_fotos').innerHTML
-      };
-
-      // Guardar inputs y textareas
-      document.querySelectorAll('input:not([type="file"]), textarea').forEach((el, idx) => {
-        if (el.type === 'radio' || el.type === 'checkbox') {
-          data.inputs.push({ idx, checked: el.checked });
-        } else {
-          data.inputs.push({ idx, value: el.value });
-        }
-      });
-
-      // Guardar celdas B/M
-      document.querySelectorAll('td[onclick^="toggleBM"]').forEach((td, idx) => {
-        data.bm.push({ idx, text: td.innerText, cls: td.className });
-      });
-
-      // Guardar firmas
-      getCanvasIds().forEach(id => {
-        const cvs = document.getElementById(id);
-        if (cvs) data.firmas[id] = cvs.toDataURL();
-      });
-
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      } catch (e) {
-        console.warn('No se pudo guardar en localStorage:', e);
-      }
-    }
-
-    function restaurarBorrador() {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-
-      try {
-        const data = JSON.parse(raw);
-
-        const allInputs = document.querySelectorAll('input:not([type="file"]), textarea');
-        data.inputs.forEach(item => {
-          const el = allInputs[item.idx];
-          if (!el) return;
-          if (el.type === 'radio' || el.type === 'checkbox') {
-            el.checked = item.checked;
-          } else {
-            el.value = item.value;
-          }
-        });
-
-        const allBm = document.querySelectorAll('td[onclick^="toggleBM"]');
-        data.bm.forEach(item => {
-          const td = allBm[item.idx];
-          if (td) {
-            td.innerText = item.text;
-            td.className = item.cls;
-          }
-        });
-
-        if (data.htmlFotos) {
-          document.getElementById('galeria_fotos').innerHTML = data.htmlFotos;
+        function loadStorage() {
+            const data = localStorage.getItem('sst_botiquin_data');
+            if (data) {
+                inspections = JSON.parse(data);
+            } else {
+                inspections = masterBotiquines.map(b => ({
+                    id: b.id, location: b.ubicacion, type: b.tipo, sub: b.sub, capacity: b.cap, 
+                    status: "OK", expiryDate: "2027-05-15", lastInspection: "2026-02-10", inspector: "Paula Patiño",
+                    checklist: checklistItems.reduce((acc, curr) => { acc[curr] = { result: 'Cumple', obs: 'OK' }; return acc; }, {}),
+                    photos: [], signature: null
+                }));
+                saveStorage();
+            }
         }
 
-        Object.keys(data.firmas).forEach(id => {
-          const cvs = document.getElementById(id);
-          if (cvs && data.firmas[id]) {
-            const img = new Image();
-            img.onload = () => cvs.getContext('2d').drawImage(img, 0, 0);
-            img.src = data.firmas[id];
-          }
-        });
+        function saveStorage() {
+            localStorage.setItem('sst_botiquin_data', JSON.stringify(inspections));
+        }
 
-        hayCambiosSinGuardar = true;
-      } catch (e) {
-        console.error('Error restaurando borrador:', e);
-      }
-    }
+        function showSection(sectionId) {
+            document.querySelectorAll('.app-section').forEach(el => el.classList.add('d-none'));
+            document.getElementById(`section-${sectionId}`).classList.remove('d-none');
+            if (sectionId === 'history') renderHistory();
+            if (sectionId === 'dashboard') updateDashboard();
+            if (sectionId === 'inspection-form') {
+                setTimeout(resizeCanvas, 200);
+            }
+        }
 
-    function limpiarTodoElFormulario() {
-      if (!confirm('¿Estás seguro de borrar TODOS los datos y firmas para iniciar un permiso nuevo?')) return;
-      localStorage.removeItem(STORAGE_KEY);
-      hayCambiosSinGuardar = false;
-      location.reload();
-    }
+        function renderChecklistTable() {
+            const tbody = document.getElementById('checklist-tbody');
+            tbody.innerHTML = '';
+            checklistItems.forEach((item) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="fw-bold text-dark">${item}</td>
+                    <td>
+                        <select class="form-select form-select-sm check-result" data-item="${item}">
+                            <option value="Cumple" selected>Cumple</option>
+                            <option value="No Cumple">No Cumple</option>
+                            <option value="N/A">N/A</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm check-obs" data-item="${item}" placeholder="Observación detallada...">
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
 
-    window.onload = function() {
-      initCanvas();
-      restaurarBorrador();
+        function autoFillBotiquinData() {
+            const codeId = document.getElementById('bot-id').value.trim();
+            const masterInfo = masterBotiquines.find(b => b.id === codeId);
+            
+            if (masterInfo) {
+                document.getElementById('bot-location').value = masterInfo.ubicacion;
+            } else {
+                document.getElementById('bot-location').value = '';
+            }
 
-      // Escuchar cambios en tiempo real
-      document.addEventListener('input', guardarBorrador);
-      document.addEventListener('change', guardarBorrador);
-    };
-  </script>
+            const existingInspection = inspections.find(i => i.id === codeId);
+            if (existingInspection) {
+                document.getElementById('bot-status').value = existingInspection.status;
+                document.getElementById('bot-expiry').value = existingInspection.expiryDate || '2027-05-15';
+                if(existingInspection.inspector) {
+                    document.getElementById('bot-inspector').value = existingInspection.inspector;
+                }
+            }
+        }
+
+        function checkUrlParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const botNum = urlParams.get('id');
+            if (botNum) {
+                const formattedId = `BOT-${String(botNum).padStart(3, '0')}`;
+                document.getElementById('bot-id').value = formattedId;
+                autoFillBotiquinData();
+                showSection('inspection-form');
+            }
+        }
+
+        function handlePhotoUpload(event) {
+            const files = event.target.files;
+            if (!files) return;
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentPhotos.push(e.target.result);
+                    renderPhotoPreviews();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderPhotoPreviews() {
+            const container = document.getElementById('photo-preview-container');
+            container.innerHTML = '';
+            currentPhotos.forEach((src, idx) => {
+                const div = document.createElement('div');
+                div.className = 'photo-container';
+                div.innerHTML = `
+                    <img src="${src}" class="photo-preview">
+                    <button type="button" class="btn-remove-photo" onclick="removePhoto(${idx})">&times;</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function removePhoto(index) {
+            currentPhotos.splice(index, 1);
+            renderPhotoPreviews();
+        }
+function initSignaturePad() {
+            const canvas = document.getElementById('signature-pad');
+            signaturePad = new SignaturePad(canvas, {
+                penColor: '#1b5e20',
+                minWidth: 1.5,
+                maxWidth: 3.5
+            });
+
+            window.addEventListener("resize", resizeCanvas);
+            resizeCanvas();
+        }
+
+        function resizeCanvas() {
+            const canvas = document.getElementById('signature-pad');
+            if (!canvas) return;
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+            if (signaturePad) signaturePad.clear();
+        }
+
+        function clearSignature() {
+            if (signaturePad) signaturePad.clear();
+        }
+
+        function saveInspection(e) {
+            e.preventDefault();
+            const botId = document.getElementById('bot-id').value.trim();
+            const masterInfo = masterBotiquines.find(b => b.id === botId);
+            const location = masterInfo ? masterInfo.ubicacion : (document.getElementById('bot-location').value.trim() || 'General');
+            const type = masterInfo ? masterInfo.tipo : "Tipo A";
+            const sub = masterInfo ? masterInfo.sub : "Gabinete Fijo";
+            const capacity = masterInfo ? masterInfo.cap : "Mediano";
+            
+            const status = document.getElementById('bot-status').value;
+            const expiry = document.getElementById('bot-expiry').value;
+            const inspector = document.getElementById('bot-inspector').value;
+
+            const checklistData = {};
+            const results = document.querySelectorAll('.check-result');
+            const obss = document.querySelectorAll('.check-obs');
+
+            results.forEach((resEl, i) => {
+                const itemKey = resEl.getAttribute('data-item');
+                checklistData[itemKey] = { result: resEl.value, obs: obss[i].value || 'Sin observaciones' };
+            });
+
+            const newRecord = {
+                id: botId, location, type, sub, capacity, status, expiryDate: expiry,
+                lastInspection: new Date().toISOString().split('T')[0], inspector,
+                checklist: checklistData, photos: [...currentPhotos], 
+                signature: signaturePad && !signaturePad.isEmpty() ? signaturePad.toDataURL() : null
+            };
+
+            const index = inspections.findIndex(i => i.id === botId);
+            if (index >= 0) { inspections[index] = newRecord; } else { inspections.unshift(newRecord); }
+            saveStorage();
+
+            alert(`¡Inspección guardada exitosamente para el botiquín ${botId}!`);
+            document.getElementById('form-botiquin').reset();
+            currentPhotos = [];
+            renderPhotoPreviews();
+            clearSignature();
+            showSection('dashboard');
+        }
+
+        function openQRModal() {
+            const modal = new bootstrap.Modal(document.getElementById('qrModal'));
+            modal.show();
+            setTimeout(() => {
+                html5QrCode = new Html5Qrcode("reader");
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: 250 },
+                    (decodedText) => {
+                        let matchId = decodedText;
+                        if (decodedText.includes('id=')) {
+                            const urlParams = new URLSearchParams(decodedText.split('?')[1]);
+                            matchId = `BOT-${String(urlParams.get('id')).padStart(3, '0')}`;
+                        }
+                        document.getElementById('bot-id').value = matchId;
+                        autoFillBotiquinData();
+                        closeQRModal();
+                        showSection('inspection-form');
+                    },
+                    (errorMessage) => {}
+                ).catch(err => console.log(err));
+            }, 300);
+        }
+
+        function closeQRModal() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    const modalEl = document.getElementById('qrModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                }).catch(err => console.log(err));
+            }
+        }
+
+        function updateDashboard() {
+            document.getElementById('dash-total').innerText = masterBotiquines.length;
+            document.getElementById('dash-ok').innerText = inspections.filter(i => i.status === 'OK').length;
+            document.getElementById('dash-warn').innerText = inspections.filter(i => i.status === 'Próximo a Vencer').length;
+            document.getElementById('dash-danger').innerText = inspections.filter(i => i.status === 'Inoperativo').length;
+        }
+
+        function renderHistory() {
+            const tbody = document.getElementById('history-tbody');
+            tbody.innerHTML = '';
+            inspections.forEach(item => {
+                let badgeClass = item.status === 'OK' ? 'badge-ok' : item.status === 'Próximo a Vencer' ? 'badge-warn' : 'badge-danger';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.lastInspection}</td>
+                    <td class="fw-bold text-success">${item.id}</td>
+                    <td>${item.location}</td>
+                    <td>${item.type}</td>
+                    <td>${item.sub}</td>
+                    <td>${item.capacity}</td>
+                    <td><span class="badge ${badgeClass}">${item.status}</span></td>
+                    <td>${item.inspector}</td>
+                    <td>${item.expiryDate || '2027-05-15'}</td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-outline-primary mb-1" onclick="viewDetail('${item.id}')">
+                            <i class="fa-solid fa-eye"></i> Ver
+                        </button>
+                        <button class="btn btn-sm btn-danger mb-1" onclick="printPDF('${item.id}')">
+                            <i class="fa-solid fa-file-pdf"></i> Guardar PDF
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function viewDetail(id) {
+            const item = inspections.find(i => i.id === id);
+            if (!item) return;
+
+            document.getElementById('modal-detail-title').innerText = `Detalle de Inspección - ${item.id} (${item.location})`;
+            
+            let checklistHtml = '<ul class="list-group mb-3">';
+            for (let [key, val] of Object.entries(item.checklist || {})) {
+                let badgeColor = val.result === 'Cumple' ? 'bg-success' : val.result === 'No Cumple' ? 'bg-danger' : 'bg-secondary';
+                checklistHtml += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span><strong>${key}:</strong> ${val.obs}</span>
+                    <span class="badge ${badgeColor}">${val.result}</span>
+                </li>`;
+            }
+            checklistHtml += '</ul>';
+
+            let photosHtml = '<div class="d-flex flex-wrap gap-2 mb-3">';
+            (item.photos || []).forEach(p => {
+                photosHtml += `<img src="${p}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd;">`;
+            });
+            photosHtml += '</div>';
+
+            let signatureHtml = item.signature ? `<div class="mt-3"><strong>Firma del Inspector:</strong><br><img src="${item.signature}" style="max-height: 80px; border: 1px solid #ccc; border-radius: 4px;"></div>` : '';
+
+            document.getElementById('modal-detail-body').innerHTML = `
+                <p><strong>Fecha:</strong> ${item.lastInspection}</p>
+                <p><strong>Ubicación:</strong> ${item.location}</p>
+                <p><strong>Tipo / Subtipo / Capacidad:</strong> ${item.type} - ${item.sub} (${item.capacity})</p>
+                <p><strong>Estado / Dictamen:</strong> <span class="badge ${item.status === 'OK' ? 'badge-ok' : item.status === 'Próximo a Vencer' ? 'badge-warn' : 'badge-danger'}">${item.status}</span></p>
+                <p><strong>Inspector:</strong> ${item.inspector}</p>
+                <p><strong>Próxima Revisión:</strong> ${item.expiryDate || '2027-05-15'}</p>
+                <hr>
+                <h6 class="fw-bold">Lista de Verificación:</h6>
+                ${checklistHtml}
+                <h6 class="fw-bold">Evidencias Fotográficas:</h6>
+                ${photosHtml}
+                ${signatureHtml}
+            `;
+
+            const detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
+            detailModal.show();
+        }
+
+        function printPDF(id) {
+            const item = inspections.find(i => i.id === id);
+            if (!item) return;
+
+            let checklistRows = '';
+            for (let [key, val] of Object.entries(item.checklist || {})) {
+                checklistRows += `
+                    <tr>
+                        <td style="padding: 6px; border: 1px solid #ddd; font-size: 11px;">${key}</td>
+                        <td style="padding: 6px; border: 1px solid #ddd; font-size: 11px; text-align: center; font-weight: bold;">${val.result}</td>
+                        <td style="padding: 6px; border: 1px solid #ddd; font-size: 11px;">${val.obs}</td>
+                    </tr>
+                `;
+            }
+
+            let photosImg = '';
+            (item.photos || []).forEach(p => {
+                photosImg += `<img src="${p}" style="width: 120px; height: 120px; object-fit: cover; margin: 5px; border-radius: 6px; border: 1px solid #bbb;">`;
+            });
+
+            const printArea = document.getElementById('print-area');
+            printArea.innerHTML = `
+                <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1b5e20; padding-bottom: 10px; margin-bottom: 15px;">
+                        <div>
+                            <h2 style="color: #1b5e20; margin: 0; font-size: 20px;">FALCON FARMS - SSTA</h2>
+                            <p style="margin: 2px 0; font-size: 12px; color: #666;">Sistema de Control e Inspección de Botiquines</p>
+                        </div>
+                        <div style="text-align: right; font-size: 12px;">
+                            <strong>Fecha de Impresión:</strong> ${new Date().toLocaleDateString()}<br>
+                            <strong>ID Botiquín:</strong> ${item.id}
+                        </div>
+                    </div>
+
+                    <table style="width: 100%; font-size: 12px; margin-bottom: 15px; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 5px; border: 1px solid #ddd;"><strong>Ubicación:</strong> ${item.location}</td>
+                            <td style="padding: 5px; border: 1px solid #ddd;"><strong>Tipo:</strong> ${item.type} (${item.capacity})</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px; border: 1px solid #ddd;"><strong>Subtipo:</strong> ${item.sub}</td>
+                            <td style="padding: 5px; border: 1px solid #ddd;"><strong>Estado Final:</strong> ${item.status}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px; border: 1px solid #ddd;"><strong>Inspector:</strong> ${item.inspector}</td>
+                            <td style="padding: 5px; border: 1px solid #ddd;"><strong>Próxima Revisión:</strong> ${item.expiryDate || '2027-05-15'}</td>
+                        </tr>
+                    </table>
+
+                    <h4 style="color: #1b5e20; font-size: 14px; border-bottom: 1px solid #1b5e20; padding-bottom: 4px;">Detalle de Verificación</h4>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                        <thead>
+                            <tr style="background-color: #1b5e20; color: white;">
+                                <th style="padding: 6px; font-size: 11px; text-align: left;">Elemento</th>
+                                <th style="padding: 6px; font-size: 11px; text-align: center;">Resultado</th>
+                                <th style="padding: 6px; font-size: 11px; text-align: left;">Observación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${checklistRows}
+                        </tbody>
+                    </table>
+
+                    <h4 style="color: #1b5e20; font-size: 14px; border-bottom: 1px solid #1b5e20; padding-bottom: 4px;">Evidencias Fotográficas</h4>
+                    <div style="margin-bottom: 15px;">${photosImg || '<p style="font-size: 12px; color: #777;">Sin fotos adjuntas.</p>'}</div>
+
+                    ${item.signature ? `<div style="margin-top: 20px;"><strong>Firma del Inspector:</strong><br><img src="${item.signature}" style="max-height: 70px; border: 1px solid #ccc;"></div>` : ''}
+                </div>
+            `;
+
+            window.print();
+        }
+async function obtenerLogoDesdeNavbar() {
+            try {
+                // En lugar de hacer fetch (que el navegador bloquea en local), 
+                // extraemos la imagen directamente desde la etiqueta del navbar de forma segura:
+                const imgElement = document.getElementById('navbar-logo');
+                if (!imgElement) return null;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = imgElement.naturalWidth || 100;
+                canvas.height = imgElement.naturalHeight || 100;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(imgElement, 0, 0);
+                
+                return canvas.toDataURL('image/png');
+            } catch (e) {
+                console.warn("No se pudo cargar el logo:", e);
+                return null;
+            }
+        }
+ async function exportToExcel() {
+            try {
+                const savedData = localStorage.getItem('sst_botiquin_data');
+                const currentInspections = savedData ? JSON.parse(savedData) : inspections;
+
+                if (!currentInspections || currentInspections.length === 0) {
+                    alert('No hay registros de inspección para exportar.');
+                    return;
+                }
+
+                const workbook = new ExcelJS.Workbook();
+                workbook.creator = 'Sistema SST - Control e Inspección de Botiquines';
+                workbook.created = new Date();
+
+                const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B5E20' } };
+                const thinBorder = {
+                    top: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+                    left: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+                    bottom: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+                    right: { style: 'thin', color: { argb: 'FFDDDDDD' } }
+                };
+
+                // -------------------------------------------------------------
+                // HOJA 1: RESUMEN EJECUTIVO DE BOTIQUINES
+                // -------------------------------------------------------------
+                const sheet1 = workbook.addWorksheet('Inspecciones Botiquines', {
+                    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+                });
+
+                // 1. Espacio y dimensiones para el Logo en la Columna A (A1:A3)
+                sheet1.mergeCells('A1:A3');
+                sheet1.getRow(1).height = 25;
+                sheet1.getRow(2).height = 25;
+                sheet1.getRow(3).height = 25;
+                sheet1.getColumn(1).width = 18;
+
+                // INSERCIÓN DE LOGO ROBUSTA MEDIANTE IMAGEN DOM INTERNA
+                try {
+                    const imgElement = document.getElementById('navbar-logo');
+                    if (imgElement && imgElement.complete) {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = imgElement.naturalWidth || 100;
+                        canvas.height = imgElement.naturalHeight || 100;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(imgElement, 0, 0);
+                        
+                        const dataUrl = canvas.toDataURL('image/png');
+                        const base64Data = dataUrl.split(',')[1];
+
+                        if (base64Data) {
+                            const logoId = workbook.addImage({
+                                base64: base64Data,
+                                extension: 'png'
+                            });
+                            
+                            // Anclaje seguro cubriendo el bloque A1:A3
+                            sheet1.addImage(logoId, {
+                                tl: { col: 0.1, row: 0.1 },
+                                br: { col: 0.9, row: 2.9 },
+                                editAs: 'oneCell'
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Advertencia al incrustar el logo en Excel:", e);
+                }
+
+                // 2. Título corporativo a la derecha del logo (B1:I2)
+                sheet1.mergeCells('B1:I2');
+                const titleCell = sheet1.getCell('B1');
+                titleCell.value = "FALCON FARMS - SSTA\nSISTEMA DE CONTROL E INSPECCIÓN DE BOTIQUINES";
+                titleCell.font = { size: 13, bold: true, color: { argb: 'FF1B5E20' }, name: 'Calibri' };
+                titleCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+
+                sheet1.mergeCells('B3:I3');
+                const subCell = sheet1.getCell('B3');
+                subCell.value = `Reporte generado el ${new Date().toLocaleDateString('es-CO')} a las ${new Date().toLocaleTimeString('es-CO')}  —  Total de registros: ${currentInspections.length}`;
+                subCell.font = { size: 9, italic: true, color: { argb: 'FF666666' } };
+                subCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+                // Encabezados de la tabla a partir de la fila 5
+                const headerRowIndex = 5;
+                const headers1 = ["Fecha Inspección", "ID Botiquín", "Ubicación", "Tipo", "Subtipo", "Capacidad", "Estado", "Inspector", "Próxima Revisión"];
+                const headerRow1 = sheet1.getRow(headerRowIndex);
+                headers1.forEach((h, i) => { headerRow1.getCell(i + 1).value = h; });
+                
+                headerRow1.eachCell(cell => {
+                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                    cell.fill = headerFill;
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                    cell.border = thinBorder;
+                });
+                headerRow1.height = 26;
+
+                sheet1.columns = [
+                    { width: 18 }, { width: 14 }, { width: 26 }, { width: 12 }, 
+                    { width: 18 }, { width: 14 }, { width: 16 }, { width: 20 }, { width: 16 }
+                ];
+
+                currentInspections.forEach((item, idx) => {
+                    const rowIndex = headerRowIndex + 1 + idx;
+                    const row = sheet1.getRow(rowIndex);
+                    row.getCell(1).value = item.lastInspection || '';
+                    row.getCell(2).value = item.id || '';
+                    row.getCell(3).value = item.location || '';
+                    row.getCell(4).value = item.type || 'Tipo A';
+                    row.getCell(5).value = item.sub || 'Gabinete Fijo';
+                    row.getCell(6).value = item.capacity || 'Mediano';
+                    row.getCell(7).value = item.status || 'OK';
+                    row.getCell(8).value = item.inspector || '';
+                    row.getCell(9).value = item.expiryDate || '2027-05-15';
+
+                    let fillColor = 'FFC8E6C9'; 
+                    if (item.status === 'Próximo a Vencer') fillColor = 'FFFFE0B2'; 
+                    if (item.status === 'Inoperativo') fillColor = 'FFFFCDD2'; 
+                    row.getCell(7).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+                    row.getCell(7).font = { bold: true };
+
+                    if (idx % 2 === 1) {
+                        row.eachCell({ includeEmpty: true }, cell => {
+                            if (!cell.fill || cell.fill.fgColor.argb === undefined) {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F7F7' } };
+                            }
+                        });
+                    }
+
+                    row.eachCell(cell => {
+                        cell.border = thinBorder;
+                        cell.alignment = { vertical: 'middle' };
+                    });
+                });
+
+                sheet1.autoFilter = { from: { row: headerRowIndex, column: 1 }, to: { row: headerRowIndex, column: headers1.length } };
+                sheet1.views = [{ state: 'frozen', ySplit: headerRowIndex }];
+
+                // -------------------------------------------------------------
+                // HOJA 2: DETALLE DEL CHECKLIST DE LOS 20 ELEMENTOS
+                // -------------------------------------------------------------
+                const sheet2 = workbook.addWorksheet('Detalle Checklist Insumos', {
+                    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+                });
+                
+                const headers2 = ["ID Botiquín", "Ubicación", "Inspector", ...checklistItems];
+                
+                const headerRow2 = sheet2.getRow(1);
+                headers2.forEach((h, i) => { 
+                    const cell = headerRow2.getCell(i + 1);
+                    cell.value = h;
+                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
+                    cell.fill = headerFill;
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                    cell.border = thinBorder;
+                });
+                headerRow2.height = 30;
+
+                currentInspections.forEach((item, idx) => {
+                    const rowData = [item.id || '', item.location || '', item.inspector || ''];
+                    
+                    checklistItems.forEach(checkName => {
+                        let checkInfo = { result: 'Cumple', obs: 'OK' };
+                        if (item.checklist && item.checklist[checkName]) {
+                            checkInfo = item.checklist[checkName];
+                        }
+                        const cellText = checkInfo.obs && checkInfo.obs !== 'Sin observaciones' && checkInfo.obs !== 'OK'
+                            ? `${checkInfo.result} (${checkInfo.obs})`
+                            : checkInfo.result;
+                        rowData.push(cellText);
+                    });
+
+                    const row2 = sheet2.addRow(rowData);
+                    
+                    if (idx % 2 === 1) {
+                        row2.eachCell({ includeEmpty: true }, cell => {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F7F7' } };
+                        });
+                    }
+
+                    row2.eachCell((cell, colNumber) => {
+                        cell.border = thinBorder;
+                        cell.alignment = { vertical: 'middle', horizontal: colNumber <= 3 ? 'left' : 'center' };
+                        cell.font = { size: 9 };
+                    });
+                });
+
+                sheet2.columns = headers2.map((h, i) => ({ width: i < 3 ? 16 : 24 }));
+                sheet2.views = [{ state: 'frozen', ySplit: 1 }];
+
+                // -------------------------------------------------------------
+                // HOJA 3: EVIDENCIAS FOTOGRÁFICAS Y FIRMAS
+                // -------------------------------------------------------------
+                const sheet3 = workbook.addWorksheet('Evidencias y Firmas');
+                sheet3.columns = Array(10).fill(0).map(() => ({ width: 16 }));
+
+                let currentRow = 2;
+                currentInspections.forEach(item => {
+                    sheet3.mergeCells(`A${currentRow}:J${currentRow}`);
+                    const headerCell = sheet3.getCell(`A${currentRow}`);
+                    headerCell.value = `BOTIQUÍN: ${item.id || 'S/N'}  |  Ubicación: ${item.location || ''}  |  Inspector: ${item.inspector || 'N/A'}  |  Estado: ${item.status || 'OK'}`;
+                    headerCell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                    headerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2E7D32' } };
+                    headerCell.alignment = { vertical: 'middle' };
+                    sheet3.getRow(currentRow).height = 22;
+                    currentRow += 2;
+
+                    const photos = item.photos || [];
+                    if (photos.length > 0) {
+                        sheet3.getCell(`A${currentRow}`).value = 'Fotos de Inspección:';
+                        sheet3.getCell(`A${currentRow}`).font = { bold: true };
+                        let photoCol = 1;
+                        let photoRow = currentRow + 1;
+                        sheet3.getRow(photoRow).height = 85;
+
+                        photos.forEach((p) => {
+                            const match = /^data:image\/(\w+);base64,(.+)$/.exec(p || '');
+                            if (match) {
+                                let ext = match[1].toLowerCase();
+                                if (ext === 'jpg') ext = 'jpeg';
+                                const imgId = workbook.addImage({ base64: match[2], extension: ext });
+                                sheet3.addImage(imgId, { tl: { col: photoCol, row: photoRow - 1 }, ext: { width: 100, height: 100 } });
+                            }
+                            photoCol++;
+                        });
+                        currentRow = photoRow + 6;
+                    }
+
+                    if (item.signature) {
+                        sheet3.getCell(`A${currentRow}`).value = 'Firma Inspector:';
+                        sheet3.getCell(`A${currentRow}`).font = { bold: true };
+                        sheet3.getRow(currentRow + 1).height = 50;
+                        const matchSig = /^data:image\/(\w+);base64,(.+)$/.exec(item.signature || '');
+                        if (matchSig) {
+                            const sigId = workbook.addImage({ base64: matchSig[2], extension: 'png' });
+                            sheet3.addImage(sigId, { tl: { col: 1, row: currentRow }, ext: { width: 140, height: 55 } });
+                        }
+                        currentRow += 4;
+                    }
+                    currentRow += 2;
+                });
+
+                // Descargar el archivo Excel (.xlsx) final
+                const buffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                saveAs(blob, `Control_Inspeccion_Botiquines_FalconFarms_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+            } catch (err) {
+                console.error(err);
+                alert('Ocurrió un error al generar el archivo Excel: ' + err.message);
+            }
+        }
+    </script>
 </body>
 </html>
