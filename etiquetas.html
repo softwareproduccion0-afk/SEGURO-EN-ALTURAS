@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Etiquetas QR - Botiquines SST</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; color: #333; }
+        h1 { text-align: center; color: #1b5e20; margin-bottom: 5px; }
+        p.subtitle { text-align: center; color: #555; margin-top: 0; margin-bottom: 20px; }
+        .no-print { text-align: center; margin-bottom: 30px; }
+        .btn-print { background-color: #1b5e20; color: white; border: none; padding: 12px 25px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .btn-print:hover { background-color: #2e7d32; }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 15px; max-width: 1200px; margin: 0 auto; }
+        .etiqueta { background: white; border: 2px dashed #1b5e20; border-radius: 10px; padding: 15px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); page-break-inside: avoid; }
+        .etiqueta h3 { margin: 0 0 5px 0; color: #1b5e20; font-size: 18px; }
+        .etiqueta .ubicacion { font-weight: bold; font-size: 14px; color: #333; margin-bottom: 10px; min-height: 35px; display: flex; align-items: center; justify-content: center; }
+        .etiqueta img { width: 140px; height: 140px; margin: 5px 0; }
+        .etiqueta .tipo { font-size: 12px; color: #666; margin-top: 5px; }
+        @media print { .no-print { display: none; } body { background: white; padding: 0; } .grid-container { gap: 10px; } .etiqueta { border: 1px solid #999; box-shadow: none; } }
+    </style>
+</head>
+<body>
+
+    <h1>ETIQUETAS QR - CONTROL DE BOTIQUINES</h1>
+    <p class="subtitle">Escanea estos códigos con la cámara del celular para abrir la ficha de inspección.</p>
+
+    <div class="no-print">
+        <button class="btn-print" onclick="window.print()">🖨️ Imprimir Etiquetas</button>
+    </div>
+
+    <div class="grid-container" id="etiquetas-grid"></div>
+
+    <script>
+        // Enlace exacto de tu nuevo repositorio en GitHub Pages para Botiquines
+        const BASE_URL = "https://softwareproduccion0-afk.github.io/Botiquines-de-primeros-auxilios-/";
+
+        const masterBotiquines = [
+            { id: "BOT-001", ubicacion: "Porteria", tipo: "Tipo A - Gabinete Fijo" },
+            { id: "BOT-002", ubicacion: "Consultorio medico", tipo: "Tipo A - Gabinete Fijo" },
+            { id: "BOT-003", ubicacion: "Oficina ADM", tipo: "Tipo B - Maletín Portátil" },
+            { id: "BOT-004", ubicacion: "Oficina de atencion", tipo: "Tipo A - Gabinete Fijo" },
+            { id: "BOT-005", ubicacion: "Casino", tipo: "Tipo B - Gabinete Fijo" },
+            { id: "BOT-006", ubicacion: "Poscosecha", tipo: "Tipo A - Gabinete Fijo" },
+            { id: "BOT-007", ubicacion: "Bomba mirfe 1", tipo: "Tipo A - Gabinete Fijo" },
+            { id: "BOT-008", ubicacion: "Bomba mirfe 2", tipo: "Tipo A - Gabinete Fijo" },
+            { id: "BOT-009", ubicacion: "Taller MTTO", tipo: "Tipo B - Maletín Portátil" },
+            { id: "BOT-010", ubicacion: "Bomba mipe 1", tipo: "Tipo A - Gabinete Fijo" },
+            { id: "BOT-011", ubicacion: "Bomba mipe 2", tipo: "Tipo A - Gabinete Fijo" },
+            { id: "BOT-012", ubicacion: "Bomba mipe 3", tipo: "Tipo A - Gabinete Fijo" },
+            { id: "BOT-013", ubicacion: "Bomba mipe 4", tipo: "Tipo A - Gabinete Fijo" },
+            { id: "BOT-014", ubicacion: "Bomba mipe 5", tipo: "Tipo A - Gabinete Fijo" }
+        ];
+
+        const contenedor = document.getElementById('etiquetas-grid');
+
+        masterBotiquines.forEach(bot => {
+            // Extraer el número puro para pasarlo en la URL (ej: "1" para BOT-001)
+            const numPuro = bot.id.replace("BOT-", "");
+            const enlaceWeb = `${BASE_URL}?id=${numPuro}`;
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(enlaceWeb)}`;
+
+            const tarjeta = document.createElement('div');
+            tarjeta.className = 'etiqueta';
+            tarjeta.innerHTML = `
+                <h3>BOTIQUÍN ${bot.id}</h3>
+                <div class="ubicacion">${bot.ubicacion}</div>
+                <img src="${qrUrl}" alt="QR Botiquín ${bot.id}">
+                <div class="tipo">${bot.tipo}</div>
+            `;
+            contenedor.appendChild(tarjeta);
+        });
+    </script>
+</body>
+</html>
