@@ -14,6 +14,10 @@
       body { background: white; padding: 0; margin: 0; }
       .page-break { page-break-before: always; }
     }
+    body {
+      /* Evita que deslizar hacia abajo recargue la página en móviles */
+      overscroll-behavior-y: contain;
+    }
     .vertical-header {
       writing-mode: vertical-lr;
       transform: rotate(180deg);
@@ -25,9 +29,12 @@
 </head>
 <body class="bg-slate-200 p-2 md:p-6 font-sans text-[10px] text-slate-900 leading-tight">
 
- <!-- BARRA DE CONTROL SUPERIOR -->
+  <!-- BARRA DE CONTROL SUPERIOR -->
   <div class="max-w-5xl mx-auto mb-4 flex justify-between items-center no-print">
     <div class="font-bold text-sm text-slate-700">Formulario Digital SST - Falcon Farms</div>
+    <button type="button" onclick="limpiarTodoElFormulario()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded text-xs">
+      Nuevo Permiso (Limpiar)
+    </button>
   </div>
 
   <div class="max-w-5xl mx-auto space-y-6">
@@ -127,7 +134,7 @@
           <p>4. Garantizar la supervisión permanente a nivel de piso por persona capacitada.</p>
           <p>2. Mantener señalizada el área de trabajo.</p>
           <p>5. Si llueve en áreas descubiertas, suspender la labor de manera INMEDIATA.</p>
-          <p>3. No trabajar fuera del área establecida, prohibido movilizar equipos con personas dentro.</p>
+          <p>3. No trabalhar fuera del área establecida, prohibido movilizar equipos con personas dentro.</p>
           <p>6. Dar cumplimiento a la totalidad de los ítems relacionados.</p>
         </div>
       </div>
@@ -246,7 +253,8 @@
       </div>
 
     </div>
-<!-- ==========================================
+
+    <!-- ==========================================
          PÁGINA 2: REGISTRO PERSONAL Y ATS
     ========================================== -->
     <div class="bg-white p-4 border border-black space-y-3 page-break">
@@ -433,7 +441,8 @@
       </div>
 
     </div>
-<!-- ==========================================
+
+    <!-- ==========================================
          PÁGINA 3: CONDICIONES, EMERGENCIAS Y FIRMAS
     ========================================== -->
     <div class="bg-white p-4 border border-black space-y-3 page-break">
@@ -639,7 +648,8 @@
           <textarea class="w-full border p-1 h-8 mt-1"></textarea>
         </div>
       </div>
-<!-- Firmas Autorizaciones -->
+
+      <!-- Firmas Autorizaciones -->
       <div class="border border-black">
         <div class="bg-[#00a66c] text-white font-bold text-center p-0.5 uppercase">
           PERSONAS HABILITADAS PARA AUTORIZAR Y VALIDAR EL PERMISO DE TRABAJO
@@ -702,7 +712,7 @@
         </div>
       </div>
 
-      <!-- NUEVO: Registro Fotográfico / Evidencia -->
+      <!-- REGISTRO FOTOGRÁFICO / EVIDENCIA -->
       <div class="border border-black">
         <div class="bg-[#00a66c] text-white font-bold text-center p-0.5 uppercase">
           REGISTRO FOTOGRÁFICO / EVIDENCIA DE LA LABOR
@@ -722,8 +732,6 @@
 
           <div id="galeria_fotos" class="grid grid-cols-2 md:grid-cols-3 gap-2 pt-1"></div>
         </div>
-      <div id="galeria_fotos" class="grid grid-cols-2 md:grid-cols-3 gap-2 pt-1"></div>
-        </div>
       </div>
 
     </div>
@@ -739,6 +747,18 @@
   </div>
 
   <script>
+    const STORAGE_KEY = 'permiso_alturas_borrador_v1';
+    let hayCambiosSinGuardar = false;
+
+    // 1. ALERTA SI INTENTAN RECARGAR O CERRAR LA PÁGINA
+    window.addEventListener('beforeunload', function (e) {
+      if (hayCambiosSinGuardar) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+
+    // 2. CAMBIO B / M CON GUARDADO
     function toggleBM(cell) {
       if (cell.innerText === '-') {
         cell.innerText = 'B';
@@ -750,9 +770,10 @@
         cell.innerText = '-';
         cell.className = 'border border-black cursor-pointer select-none font-bold text-[7px]';
       }
+      guardarBorrador();
     }
 
-    // Función para manejar la carga o captura de fotos
+    // 3. MANEJO DE FOTOS
     function agregarFotos(event) {
       const files = event.target.files;
       const galeria = document.getElementById('galeria_fotos');
@@ -760,32 +781,33 @@
 
       Array.from(files).forEach(file => {
         if (!file.type.startsWith('image/')) return;
-
         const reader = new FileReader();
         reader.onload = function(e) {
           const card = document.createElement('div');
           card.className = 'border border-black p-1 bg-slate-50 flex flex-col items-center relative break-inside-avoid';
-          
           card.innerHTML = `
             <img src="${e.target.result}" class="w-full h-36 object-contain bg-white border border-slate-300">
             <input type="text" placeholder="Descripción de la foto (opcional)" class="w-full border-b border-black text-[8px] mt-1 px-1 bg-transparent focus:outline-none">
-            <button type="button" onclick="this.parentElement.remove()" class="text-[7px] text-red-600 underline mt-1 no-print">Eliminar foto</button>
+            <button type="button" onclick="if(confirm('¿Eliminar esta foto?')) { this.parentElement.remove(); guardarBorrador(); }" class="text-[7px] text-red-600 underline mt-1 no-print">Eliminar foto</button>
           `;
           galeria.appendChild(card);
+          guardarBorrador();
         };
         reader.readAsDataURL(file);
       });
-
       event.target.value = '';
     }
 
-    // Inicializar todos los lienzos de firma (Principales, Cierre y los 12 de las tablas de personal)
-    function initCanvas() {
+    // 4. LIENZOS DE FIRMA
+    function getCanvasIds() {
       let ids = ['f_aut', 'f_emerg', 'f_emisor', 'f_contratista', 'f_cierre'];
       for(let i=1; i<=10; i++) ids.push('f_trab_' + i);
       for(let i=1; i<=2; i++) ids.push('f_ay_' + i);
+      return ids;
+    }
 
-      ids.forEach(id => {
+    function initCanvas() {
+      getCanvasIds().forEach(id => {
         const cvs = document.getElementById(id);
         if(!cvs) return;
         const ctx = cvs.getContext('2d');
@@ -806,7 +828,12 @@
           ctx.strokeStyle = '#000';
           ctx.stroke();
         }
-        function stop() { drawing = false; }
+        function stop() {
+          if (drawing) {
+            drawing = false;
+            guardarBorrador();
+          }
+        }
         
         function getPos(e, c) {
           const r = c.getBoundingClientRect();
@@ -825,11 +852,112 @@
     }
 
     function borrarFirma(id) {
+      if (!confirm('¿Seguro que deseas borrar esta firma?')) return;
       const c = document.getElementById(id);
-      if(c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+      if(c) {
+        c.getContext('2d').clearRect(0, 0, c.width, c.height);
+        guardarBorrador();
+      }
     }
 
-    window.onload = initCanvas;
+    // 5. SISTEMA DE AUTOGUARDADO Y RECUPERACIÓN
+    function guardarBorrador() {
+      hayCambiosSinGuardar = true;
+      const data = {
+        inputs: [],
+        bm: [],
+        firmas: {},
+        htmlFotos: document.getElementById('galeria_fotos').innerHTML
+      };
+
+      // Guardar inputs y textareas
+      document.querySelectorAll('input:not([type="file"]), textarea').forEach((el, idx) => {
+        if (el.type === 'radio' || el.type === 'checkbox') {
+          data.inputs.push({ idx, checked: el.checked });
+        } else {
+          data.inputs.push({ idx, value: el.value });
+        }
+      });
+
+      // Guardar celdas B/M
+      document.querySelectorAll('td[onclick^="toggleBM"]').forEach((td, idx) => {
+        data.bm.push({ idx, text: td.innerText, cls: td.className });
+      });
+
+      // Guardar firmas
+      getCanvasIds().forEach(id => {
+        const cvs = document.getElementById(id);
+        if (cvs) data.firmas[id] = cvs.toDataURL();
+      });
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.warn('No se pudo guardar en localStorage:', e);
+      }
+    }
+
+    function restaurarBorrador() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+
+      try {
+        const data = JSON.parse(raw);
+
+        const allInputs = document.querySelectorAll('input:not([type="file"]), textarea');
+        data.inputs.forEach(item => {
+          const el = allInputs[item.idx];
+          if (!el) return;
+          if (el.type === 'radio' || el.type === 'checkbox') {
+            el.checked = item.checked;
+          } else {
+            el.value = item.value;
+          }
+        });
+
+        const allBm = document.querySelectorAll('td[onclick^="toggleBM"]');
+        data.bm.forEach(item => {
+          const td = allBm[item.idx];
+          if (td) {
+            td.innerText = item.text;
+            td.className = item.cls;
+          }
+        });
+
+        if (data.htmlFotos) {
+          document.getElementById('galeria_fotos').innerHTML = data.htmlFotos;
+        }
+
+        Object.keys(data.firmas).forEach(id => {
+          const cvs = document.getElementById(id);
+          if (cvs && data.firmas[id]) {
+            const img = new Image();
+            img.onload = () => cvs.getContext('2d').drawImage(img, 0, 0);
+            img.src = data.firmas[id];
+          }
+        });
+
+        hayCambiosSinGuardar = true;
+      } catch (e) {
+        console.error('Error restaurando borrador:', e);
+      }
+    }
+
+    function limpiarTodoElFormulario() {
+      if (!confirm('¿Estás seguro de borrar TODOS los datos y firmas para iniciar un permiso nuevo?')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      hayCambiosSinGuardar = false;
+      location.reload();
+    }
+
+    window.onload = function() {
+      initCanvas();
+      restaurarBorrador();
+
+      // Escuchar cambios en tiempo real
+      document.addEventListener('input', guardarBorrador);
+      document.addEventListener('change', guardarBorrador);
+    };
   </script>
 </body>
 </html>
